@@ -12,10 +12,7 @@ function SideLink({ to, label, icon }) {
         (isActive ? "bg-white text-info fw-semibold" : "text-white")
       }
     >
-      <span
-        aria-hidden="true"
-        style={{ display: "inline-grid", placeItems: "center" }}
-      >
+      <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center" }}>
         {icon}
       </span>
       <span className="text-truncate">{label}</span>
@@ -58,12 +55,7 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
                   to="/committee"
                   label="Dashboard"
                   icon={
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                       <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" />
                     </svg>
                   }
@@ -74,17 +66,10 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
                   to="/committee/students"
                   label="Students"
                   icon={
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                      <path
-                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 
                         1.79-4 4 1.79 4 4 4zm0 2c-2.67 
-                        0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                      />
+                        0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                     </svg>
                   }
                 />
@@ -94,35 +79,36 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
                   to="/committee/sections"
                   label="Sections"
                   icon={
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                      <path
-                        d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 
-                        0h8V11h-8v10zm0-18v6h8V3h-8z"
-                      />
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 
+                        0h8V11h-8v10zm0-18v6h8V3h-8z" />
                     </svg>
                   }
                 />
               </li>
+
+              {/* NEW: Schedules */}
+              <li>
+                <SideLink
+                  to="/committee/schedules"
+                  label="Schedules"
+                  icon={
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7H5v10h14V9z" />
+                      <path d="M7 12h5v2H7zM14 12h3v2h-3z" />
+                    </svg>
+                  }
+                />
+              </li>
+
               <li>
                 <SideLink
                   to="/committee/survey"
                   label="Survey"
                   icon={
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                      <path
-                        d="M3 3h18v2H3zm0 4h12v2H3zm0 
-                        4h18v2H3zm0 4h12v2H3zm0 4h18v2H3z"
-                      />
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M3 3h18v2H3zm0 4h12v2H3zm0 
+                        4h18v2H3zm0 4h12v2H3zm0 4h18v2H3z" />
                     </svg>
                   }
                 />
@@ -132,16 +118,9 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
                   to="/committee/rules"
                   label="Rules"
                   icon={
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                      <path
-                        d="M4 6h16v2H4zm0 5h16v2H4zm0 
-                        5h16v2H4z"
-                      />
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M4 6h16v2H4zm0 5h16v2H4zm0 
+                        5h16v2H4z" />
                     </svg>
                   }
                 />
@@ -151,17 +130,10 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
                   to="/committee/notifications"
                   label="Notifications"
                   icon={
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                      <path
-                        d="M12 22c1.1 0 2-.9 2-2H10c0 
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M12 22c1.1 0 2-.9 2-2H10c0 
                         1.1.9 2 2 2zm6-6V9c0-3.1-1.6-5.6-4.5-6.3V2h-3v.7C7.6 
-                        3.4 6 5.9 6 9v7l-2 2v1h16v-1l-2-2z"
-                      />
+                        3.4 6 5.9 6 9v7l-2 2v1h16v-1l-2-2z" />
                     </svg>
                   }
                 />
@@ -171,11 +143,7 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
 
           {/* Logout */}
           <div className="mt-auto">
-            <button
-              type="button"
-              className="btn btn-outline-light w-100"
-              onClick={handleLogout}
-            >
+            <button type="button" className="btn btn-outline-light w-100" onClick={handleLogout}>
               Logout
             </button>
           </div>
@@ -210,6 +178,10 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
               <li data-bs-dismiss="offcanvas">
                 <SideLink to="/committee/sections" label="Sections" icon="🗂️" />
               </li>
+              {/* NEW: Schedules */}
+              <li data-bs-dismiss="offcanvas">
+                <SideLink to="/committee/schedules" label="Schedules" icon="🗓️" />
+              </li>
               <li data-bs-dismiss="offcanvas">
                 <SideLink to="/committee/survey" label="Survey" icon="📝" />
               </li>
@@ -217,11 +189,7 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
                 <SideLink to="/committee/rules" label="Rules" icon="⚙️" />
               </li>
               <li data-bs-dismiss="offcanvas">
-                <SideLink
-                  to="/committee/notifications"
-                  label="Notifications"
-                  icon="🔔"
-                />
+                <SideLink to="/committee/notifications" label="Notifications" icon="🔔" />
               </li>
             </ul>
 
@@ -250,12 +218,7 @@ export default function CommitteeLayout({ userEmail, onLogout }) {
               data-bs-target="#committeeOffcanvas"
               aria-controls="committeeOffcanvas"
             >
-              <svg
-                viewBox="0 0 24 24"
-                width="26"
-                height="26"
-                fill="currentColor"
-              >
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
                 <path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z" />
               </svg>
             </button>

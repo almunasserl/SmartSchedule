@@ -28,23 +28,7 @@ export default function FacultyDashboard() {
       <div className="d-flex align-items-center justify-content-between mb-2">
         <h2 className="m-0 fw-bold text-info">Dashboard</h2>
 
-        <Link
-          to="/faculty/calendar"
-          className="btn btn-outline-info d-inline-flex align-items-center justify-content-center rounded-3"
-          style={{ width: 44, height: 44 }}
-          title="View calendar"
-          aria-label="View calendar"
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1V3a1 1 0 1 1 2 0v1zm12 6H5v10h14V8z" />
-          </svg>
-        </Link>
+        
       </div>
 
       {/* Stats (more space between items) */}

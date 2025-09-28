@@ -28,7 +28,7 @@ export default function RulesPage() {
     max_sections_per_course: 4,
   });
 
-  // payload النهائي (بدون الأقسام المحذوفة)
+  // payload النهائي
   const rulesPayload = useMemo(
     () => ({
       teaching_window: teachingWindow,
@@ -40,7 +40,6 @@ export default function RulesPage() {
   );
 
   const handleSaveDraft = () => {
-    // TODO: api.put("/rules", rulesPayload)
     console.log("SAVE DRAFT:", rulesPayload);
     alert("Rules saved as draft (check console).");
   };
@@ -66,7 +65,7 @@ export default function RulesPage() {
     });
   };
 
-  // إدارة blocked slots
+  // Blocked slots handlers
   const addBlockedSlot = () => {
     setTeachingWindow((prev) => ({
       ...prev,
@@ -372,6 +371,16 @@ export default function RulesPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Preview JSON */}
+      <div className="card shadow-sm">
+        <div className="card-header bg-white">
+          <h6 className="mb-0 text-muted">Preview (JSON payload)</h6>
+        </div>
+        <pre className="m-0 p-3 small bg-light" style={{ whiteSpace: "pre-wrap" }}>
+{JSON.stringify(rulesPayload, null, 2)}
+        </pre>
       </div>
     </div>
   );

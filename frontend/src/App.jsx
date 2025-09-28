@@ -23,6 +23,11 @@ import StudentsPage from "./Pages/committee/StudentPage";
 import SectionsPage from "./Pages/committee/SectionsPage";
 import SurveyPage from "./Pages/committee/SurveyPage";
 import RulesPage from "./Pages/committee/RulesPage";
+import NotificationsPage from "./Pages/committee/NotificationsPage";
+import CommitteeSchedulesPage from "./Pages/committee/CommitteeSchedulesPage";
+
+// Pages (Student)
+
 function App() {
   return (
     <Router>
@@ -43,6 +48,8 @@ function App() {
           <Route path="sections" element={<SectionsPage />} />
           <Route path="survey" element={<SurveyPage />} />
           <Route path="rules" element={<RulesPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="schedules" element={<CommitteeSchedulesPage />} />
         </Route>
       </Routes>
     </Router>
