@@ -1,6 +1,6 @@
-// src/layouts/FacultyLayout.jsx
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../../Hooks/AuthContext";
 
 function SideLink({ to, label, icon }) {
   return (
@@ -23,23 +23,13 @@ function SideLink({ to, label, icon }) {
   );
 }
 
-export default function FacultyLayout({ userEmail, onLogout }) {
+export default function FacultyLayout() {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const email =
-    userEmail ||
-    (typeof window !== "undefined" &&
-      (JSON.parse(localStorage.getItem("user") || "{}").email ||
-        localStorage.getItem("email"))) ||
-    "";
 
   const handleLogout = () => {
-    if (onLogout) {
-      onLogout();
-    } else {
-      localStorage.removeItem("user");
-      localStorage.removeItem("email");
-      navigate("/login");
-    }
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -51,9 +41,9 @@ export default function FacultyLayout({ userEmail, onLogout }) {
             <span className="h3 mb-0">SmartSchedule</span>
           </div>
 
-          <nav className="mt-3">
+          <nav>
             <ul className="nav nav-pills flex-column mb-auto gap-1">
-              <li className="nav-item">
+              <li>
                 <SideLink
                   to="/faculty"
                   label="Dashboard"
@@ -69,6 +59,7 @@ export default function FacultyLayout({ userEmail, onLogout }) {
                   }
                 />
               </li>
+
               <li>
                 <SideLink
                   to="/faculty/courses"
@@ -86,6 +77,7 @@ export default function FacultyLayout({ userEmail, onLogout }) {
                   }
                 />
               </li>
+
               <li>
                 <SideLink
                   to="/faculty/sections"
@@ -103,6 +95,26 @@ export default function FacultyLayout({ userEmail, onLogout }) {
                   }
                 />
               </li>
+
+              <li>
+                <SideLink
+                  to="/faculty/availability"
+                  label="My Availability"
+                  icon={
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M8 3.5a.5.5 0 0 1 .5.5v4.25l3.5 2.1a.5.5 0 0 1-.5.85l-4-2.4A.5.5 0 0 1 7.5 8V4a.5.5 0 0 1 .5-.5z" />
+                      <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm0-1A7 7 0 1 1 8 1a7 7 0 0 1 0 14z" />
+                    </svg>
+                  }
+                />
+              </li>
+
               <li>
                 <SideLink
                   to="/faculty/feedback"
@@ -220,6 +232,22 @@ export default function FacultyLayout({ userEmail, onLogout }) {
                   }
                 />
               </li>
+              <li data-bs-dismiss="offcanvas">
+                <SideLink
+                  to="/faculty/availability"
+                  label="Availability"
+                  icon={
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      fill="currentColor"
+                    >
+                      <path d="M3 6h18M3 12h18M3 18h18" />
+                    </svg>
+                  }
+                />
+              </li>
             </ul>
 
             {/* Logout inside offcanvas */}
@@ -238,7 +266,7 @@ export default function FacultyLayout({ userEmail, onLogout }) {
         <div className="col px-0 d-flex flex-column">
           {/* Top navbar */}
           <nav className="navbar navbar-light bg-light px-3 shadow-sm sticky-top">
-            {/* Hamburger icon (no border); opens offcanvas */}
+            {/* Hamburger icon (mobile) */}
             <button
               type="button"
               className="p-0 border-0 bg-transparent d-lg-none me-2 text-info d-inline-flex align-items-center justify-content-center"
@@ -257,9 +285,9 @@ export default function FacultyLayout({ userEmail, onLogout }) {
               >
                 <path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z" />
               </svg>
-            </button>
+</button>
 
-            {/* Brand in navbar */}
+            {/* Brand */}
             <span className="navbar-brand mb-0 h4">Faculty Dashboard</span>
 
             {/* user email on right */}
@@ -267,9 +295,9 @@ export default function FacultyLayout({ userEmail, onLogout }) {
               <span
                 className="d-inline-block text-primary fw-semibold text-truncate"
                 style={{ maxWidth: 260 }}
-                title={email}
+                title={user?.email}
               >
-                {email || " "}
+                {user?.email || ""}
               </span>
             </div>
           </nav>
@@ -279,7 +307,7 @@ export default function FacultyLayout({ userEmail, onLogout }) {
             <Outlet />
           </main>
 
-          {/* Footer centered */}
+          {/* Footer */}
           <footer className="bg-white border-top text-muted small py-2 px-3 text-center">
             © {new Date().getFullYear()} SmartSchedule
           </footer>

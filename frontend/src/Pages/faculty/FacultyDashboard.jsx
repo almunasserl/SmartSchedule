@@ -1,93 +1,70 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import apiClient from "../../Services/apiClient";
+import { useAuth } from "../../Hooks/AuthContext";
 
 export default function FacultyDashboard() {
-  const courses = [
-    {
-      course_code: "SWE481",
-      name: "Advanced Web Applications Engineering",
-      credits: 3,
-      type: "Elective",
-    },
-    {
-      course_code: "SWE455",
-      name: "Software Maintenance and Evolution",
-      credits: 2,
-      type: "Required",
-    },
-  ];
+  const { user } = useAuth();
+  const [stats, setStats] = useState({ total_courses: 0, total_sections: 0 });
+  const [schedule, setSchedule] = useState([]);
 
-  const sections = [
-    { section_id: 50801, course_code: "SWE481" },
-    { section_id: 50678, course_code: "SWE455" },
-  ];
+  useEffect(() => {
+    if (user?.id) {
+      apiClient.get(`/faculty/${user.id}/stats`).then(res => setStats(res.data));
+      apiClient.get(`/faculty/${user.id}/schedule`).then(res => setSchedule(res.data));
+    }
+  }, [user]);
 
   return (
-    <div className="p-3 p-md-4">
-      {/* Header */}
-      <div className="d-flex align-items-center justify-content-between mb-2">
-        <h2 className="m-0 fw-bold text-info">Dashboard</h2>
+    <div>
+      <h2 className="fw-bold text-info mb-4">Dashboard</h2>
 
-        
-      </div>
-
-      {/* Stats (more space between items) */}
-      <div
-        className="d-flex justify-content-center mb-3"
-        style={{ gap: "6rem" }} /* increased distance */
-      >
+      {/* Stats */}
+      <div className="d-flex justify-content-center mb-4" style={{ gap: "6rem" }}>
         <div className="text-center">
-          <div className="fs-3 fw-bold text-info">{courses.length}</div>
-          <div className="text-info small">courses</div>
+          <div className="fs-3 fw-bold text-info">{stats.total_courses}</div>
+          <div className="text-info small">Courses</div>
         </div>
         <div className="text-center">
-          <div className="fs-3 fw-bold text-info">{sections.length}</div>
-          <div className="text-info small">sections</div>
+          <div className="fs-3 fw-bold text-info">{stats.total_sections}</div>
+          <div className="text-info small">Sections</div>
         </div>
       </div>
 
-      {/* Courses card */}
+      {/* Faculty Schedule Table */}
       <div className="card border-0 shadow-sm rounded-3">
         <div className="card-body">
-          <h5 className="fw-semibold mb-3 text-info">Courses Overview</h5>
-
-          <ul className="list-unstyled mb-0">
-            {courses.map((c) => (
-              <li
-                key={c.course_code}
-                className="p-3 mb-3 rounded-3 bg-light"
-                // For a darker gray like the mock, uncomment:
-                // style={{ backgroundColor: "#e9e9eb" }}
-              >
-                <div className="fw-semibold">
-                  <strong>{c.course_code}</strong> - {c.name}
-                </div>
-                <div className="d-flex align-items-center text-muted small mt-1">
-                  <span
-                    className="rounded-circle me-2"
-                    style={{
-                      width: 7,
-                      height: 7,
-                      backgroundColor: "#333",
-                      display: "inline-block",
-                    }}
-                  />
-                  {c.credits} hours
-                </div>
-              </li>
-            ))}
-          </ul>
+          <h5 className="fw-semibold mb-3 text-info">My Weekly Schedule</h5>
+          <div className="table-responsive">
+            <table className="table table-bordered text-center align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th>Day</th>
+                  <th>Classes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {schedule.map((row, idx) => (
+                  <tr key={idx}>
+                    <td className="fw-bold">{row.day_of_week}</td>
+                    <td>
+                      {row.classes.map((cls, i) => (
+                        <div key={i} className="mb-2 p-2 bg-light rounded">
+                          <strong>{cls.course_name}</strong><br />
+                          {cls.start_time} - {cls.end_time} | {cls.room_name} ({cls.building})
+                        </div>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+                {schedule.length === 0 && (
+                  <tr>
+                    <td colSpan={2} className="text-muted">No schedule available</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-
-      {/* Action button OUTSIDE the card */}
-      <div className="d-flex justify-content-end mt-3">
-        <Link
-          to="/faculty/calendar"
-          className="btn btn-info text-white fw-semibold"
-        >
-          view calendar
-        </Link>
       </div>
     </div>
   );

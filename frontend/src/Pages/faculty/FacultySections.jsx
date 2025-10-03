@@ -1,34 +1,20 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import apiClient from "../../Services/apiClient";
+import { useAuth } from "../../Hooks/AuthContext";
 
 export default function FacultySections() {
-  // بيانات تجريبية (Dummy Data) من جدول sections
-  const sections = [
-    {
-      section_id: 50801,
-      course_code: "SWE481",
-      day: "Sunday",
-      time: "8:00 - 8:50",
-      capacity: 30,
-      enrolled: 28,
-    },
-    {
-      section_id: 50678,
-      course_code: "SWE455",
-      day: "Wednesday",
-      time: "10:00 - 10:50",
-      capacity: 40,
-      enrolled: 35,
-    },
-  ];
+  const { user } = useAuth();
+  const [sections, setSections] = useState([]);
+
+  useEffect(() => {
+    if (user?.id) {
+      apiClient.get(`/faculty/${user.id}/sections`).then(res => setSections(res.data));
+    }
+  }, [user]);
 
   return (
     <div>
-      {/* header with calendar icon */}
-      <div className="d-flex align-items-center justify-content-between mb-3">
-        <h2 className="m-0 text-info">My Sections</h2>
-      </div>
-
+      <h2 className="text-info mb-3">My Sections</h2>
       <div className="table-responsive">
         <table className="table table-bordered text-center align-middle">
           <thead className="table-light">
@@ -37,21 +23,30 @@ export default function FacultySections() {
               <th>Course</th>
               <th>Day</th>
               <th>Time</th>
+              <th>Room</th>
+              <th>Building</th>
               <th>Capacity</th>
-              <th>Enrolled</th>
+              <th>Actual Students</th>
             </tr>
           </thead>
           <tbody>
-            {sections.map((sec) => (
-              <tr key={sec.section_id}>
-                <td>{sec.section_id}</td>
-                <td>{sec.course_code}</td>
-                <td>{sec.day}</td>
-                <td>{sec.time}</td>
+            {sections.map(sec => (
+              <tr key={sec.id}>
+                <td>{sec.id}</td>
+                <td>{sec.course_name}</td>
+                <td>{sec.day_of_week}</td>
+                <td>{sec.start_time} - {sec.end_time}</td>
+                <td>{sec.room_name}</td>
+                <td>{sec.building}</td>
                 <td>{sec.capacity}</td>
-                <td>{sec.enrolled}</td>
+                <td>{sec.actual_students}</td>
               </tr>
             ))}
+            {sections.length === 0 && (
+              <tr>
+                <td colSpan="8" className="text-muted">No sections found</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

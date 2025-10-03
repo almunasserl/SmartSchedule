@@ -5,19 +5,16 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-const clearTokenAndRedirect = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("token_expiry");
-  window.location.href = "/login";
-};
-
-// Request interceptor
+// Interceptors
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   const expiry = localStorage.getItem("token_expiry");
 
   if (expiry && Date.now() > Number(expiry)) {
-    clearTokenAndRedirect();
+    localStorage.removeItem("token");
+    localStorage.removeItem("token_expiry");
+    // نخلي React يقرر التوجيه بدل refresh
+    window.dispatchEvent(new Event("tokenExpired"));
     return Promise.reject(new Error("Token expired"));
   }
 
@@ -25,14 +22,14 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      clearTokenAndRedirect();
+      localStorage.removeItem("token");
+      localStorage.removeItem("token_expiry");
+      window.dispatchEvent(new Event("unauthorized"));
     }
-    console.error("API Error:", error);
     return Promise.reject(error);
   }
 );
