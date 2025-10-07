@@ -6,6 +6,7 @@ import { useAuth } from "../../Hooks/AuthContext";
 export default function StudentDashboard() {
   const { user } = useAuth();
   const studentId = user?.id;
+  console.log(studentId);
 
   const [stats, setStats] = useState(null);
   const [schedule, setSchedule] = useState([]);
@@ -31,7 +32,10 @@ export default function StudentDashboard() {
   if (loading) {
     return (
       <div className="text-center my-5">
-        <div className="spinner-border text-info" style={{ width: "3rem", height: "3rem" }} />
+        <div
+          className="spinner-border text-info"
+          style={{ width: "3rem", height: "3rem" }}
+        />
         <p className="mt-2 text-info">Loading dashboard...</p>
       </div>
     );

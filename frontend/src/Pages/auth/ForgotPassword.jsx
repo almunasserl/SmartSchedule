@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import apiClient from "../../Services/apiClient";
 
 export default function ForgotPassword() {
@@ -6,6 +7,7 @@ export default function ForgotPassword() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +27,10 @@ export default function ForgotPassword() {
 
   return (
     <div className="d-flex align-items-center justify-content-center vh-100 bg-info">
-      <div className="card shadow p-4 bg-white" style={{ minWidth: "350px", borderRadius: "15px" }}>
+      <div
+        className="card shadow p-4 bg-white"
+        style={{ minWidth: "350px", borderRadius: "15px" }}
+      >
         <h3 className="text-center mb-4 text-info">Forgot Password</h3>
 
         {message && <div className="alert alert-success">{message}</div>}
@@ -44,10 +49,27 @@ export default function ForgotPassword() {
             />
           </div>
 
-          <button type="submit" className="btn btn-info w-100 text-white fw-bold" disabled={loading}>
-            {loading && <span className="spinner-border spinner-border-sm me-2"></span>}
+          <button
+            type="submit"
+            className="btn btn-info w-100 text-white fw-bold"
+            disabled={loading}
+          >
+            {loading && (
+              <span className="spinner-border spinner-border-sm me-2"></span>
+            )}
             {loading ? "Sending..." : "Send Reset Link"}
           </button>
+
+          {/* 🔗 Link to Reset Password page */}
+          <div className="text-center mt-3">
+            <button
+              type="button"
+              className="btn btn-link text-info text-decoration-none fw-semibold"
+              onClick={() => navigate("/reset-password")}
+            >
+              Go to Reset Password
+            </button>
+          </div>
         </form>
       </div>
     </div>

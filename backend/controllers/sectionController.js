@@ -1,25 +1,55 @@
 const sql = require("../config/db");
 
+/** 🧩 دالة مساعدة لتحويل الوقت إلى دقائق */
+function toMinutes(timeStr) {
+  const [h, m, s] = timeStr.split(":").map(Number);
+  return h * 60 + m + (s ? s / 60 : 0);
+}
+
 /**
  * إنشاء سكشن جديد مع التحقق من كل الشروط
  */
 exports.createSection = async (req, res) => {
   try {
-    const { schedule_id, course_id, instructor_id, room_id, capacity, day_of_week, start_time, end_time } = req.body;
+    const {
+      schedule_id,
+      course_id,
+      instructor_id,
+      room_id,
+      capacity,
+      day_of_week,
+      start_time,
+      end_time,
+    } = req.body;
 
     // 1) جلب القوانين
     const rules = await sql`SELECT * FROM rules LIMIT 1`;
     if (rules.length === 0) {
       return res.status(400).json({ error: "Rules not defined" });
     }
-    const { work_start, work_end, break_start, break_end, lecture_duration, min_students_to_open } = rules[0];
 
-    // 2) تحقق من وقت الدوام
-    if (start_time < work_start || end_time > work_end) {
-      return res.status(400).json({ error: "Section outside working hours" });
+    const {
+      work_start,
+      work_end,
+      break_start,
+      break_end,
+      lecture_duration,
+      min_students_to_open,
+    } = rules[0];
+
+    // 2) ✅ تحقق من وقت الدوام (تحويل إلى دقائق)
+    const startMin = toMinutes(start_time);
+    const endMin = toMinutes(end_time);
+    const workStartMin = toMinutes(work_start);
+    const workEndMin = toMinutes(work_end);
+
+    if (startMin < workStartMin || endMin > workEndMin) {
+      return res
+        .status(400)
+        .json({ error: "Section outside working hours" });
     }
 
-    // 3) تحقق من وقت البريك
+    // 3) تحقق من وقت البريك (في PostgreSQL)
     const overlapBreak = await sql`
       SELECT (
         tsrange(
@@ -33,22 +63,29 @@ exports.createSection = async (req, res) => {
       ) AS overlap
     `;
     if (overlapBreak[0].overlap) {
-      return res.status(400).json({ error: "Section overlaps with break time" });
+      return res
+        .status(400)
+        .json({ error: "Section overlaps with break time" });
     }
 
-    // 4) تحقق من مدة المحاضرة
+    // 4) تحقق من مدة المحاضرة (بالساعات)
     const duration = await sql`
       SELECT EXTRACT(EPOCH FROM (${end_time}::time - ${start_time}::time))/3600 AS hours
     `;
     if (duration[0].hours > lecture_duration) {
-      return res.status(400).json({ error: "Section exceeds maximum allowed duration" });
+      return res
+        .status(400)
+        .json({ error: "Section exceeds maximum allowed duration" });
     }
 
     // 5) تحقق من سعة القاعة
     const room = await sql`SELECT * FROM room WHERE id = ${room_id}`;
-    if (room.length === 0) return res.status(404).json({ error: "Room not found" });
+    if (room.length === 0)
+      return res.status(404).json({ error: "Room not found" });
     if (capacity > room[0].capacity) {
-      return res.status(400).json({ error: "Section capacity exceeds room capacity" });
+      return res
+        .status(400)
+        .json({ error: "Section capacity exceeds room capacity" });
     }
 
     // 6) تحقق من إتاحة الأستاذ
@@ -60,7 +97,9 @@ exports.createSection = async (req, res) => {
         AND ${end_time}::time <= end_time
     `;
     if (availability.length === 0) {
-      return res.status(400).json({ error: "Instructor not available at this time" });
+      return res
+        .status(400)
+        .json({ error: "Instructor not available at this time" });
     }
 
     // 7) تحقق من تضارب الأستاذ
@@ -78,7 +117,9 @@ exports.createSection = async (req, res) => {
         )
     `;
     if (instructorConflict.length > 0) {
-      return res.status(400).json({ error: "Instructor has another section at this time" });
+      return res
+        .status(400)
+        .json({ error: "Instructor has another section at this time" });
     }
 
     // 8) تحقق من تضارب القاعة
@@ -96,7 +137,9 @@ exports.createSection = async (req, res) => {
         )
     `;
     if (roomConflict.length > 0) {
-      return res.status(400).json({ error: "Room already booked at this time" });
+      return res
+        .status(400)
+        .json({ error: "Room already booked at this time" });
     }
 
     // 9) تحقق من فتح سكشن جديد (نسبة 70% أو عدد محدد)
@@ -109,7 +152,9 @@ exports.createSection = async (req, res) => {
       const last = existingSections[existingSections.length - 1];
       const fillRate = last.enrolled / last.capacity;
       if (fillRate < 0.7 && last.enrolled < min_students_to_open) {
-        return res.status(400).json({ error: "Previous section not sufficiently filled to open a new one" });
+        return res.status(400).json({
+          error: "Previous section not sufficiently filled to open a new one",
+        });
       }
     }
 
@@ -126,32 +171,43 @@ exports.createSection = async (req, res) => {
   }
 };
 
-
-
 /**
  * تحديث سكشن
  */
 exports.updateSection = async (req, res) => {
   try {
     const { sectionId } = req.params;
-    const { schedule_id, course_id, instructor_id, room_id, capacity, day_of_week, start_time, end_time } = req.body;
+    const {
+      schedule_id,
+      course_id,
+      instructor_id,
+      room_id,
+      capacity,
+      day_of_week,
+      start_time,
+      end_time,
+    } = req.body;
 
     // ✅ تحقق من القاعة
     const room = await sql`SELECT * FROM room WHERE id = ${room_id}`;
-    if (room.length === 0) return res.status(404).json({ error: "Room not found" });
+    if (room.length === 0)
+      return res.status(404).json({ error: "Room not found" });
     if (capacity > room[0].capacity) {
-      return res.status(400).json({ error: "Section capacity exceeds room capacity" });
+      return res
+        .status(400)
+        .json({ error: "Section capacity exceeds room capacity" });
     }
 
     // ✅ تحقق من القوانين (المدة والبريك)
     const rules = await sql`SELECT * FROM rules LIMIT 1`;
 
-    // نحسب المدة من داخل PostgreSQL (بالدقايق)
     const duration = await sql`
       SELECT EXTRACT(EPOCH FROM (${end_time}::time - ${start_time}::time))/60 AS minutes
     `;
     if (duration[0].minutes > rules[0].lecture_duration) {
-      return res.status(400).json({ error: `Lecture exceeds max duration of ${rules[0].lecture_duration} minutes` });
+      return res.status(400).json({
+        error: `Lecture exceeds max duration of ${rules[0].lecture_duration} minutes`,
+      });
     }
 
     // تحقق من وقت البريك
@@ -168,7 +224,9 @@ exports.updateSection = async (req, res) => {
       ) AS overlap
     `;
     if (overlapBreak[0].overlap) {
-      return res.status(400).json({ error: "Section overlaps with break time" });
+      return res
+        .status(400)
+        .json({ error: "Section overlaps with break time" });
     }
 
     // ✅ تحقق من توفر المدرس
@@ -180,7 +238,9 @@ exports.updateSection = async (req, res) => {
         AND end_time >= ${end_time}::time
     `;
     if (availability.length === 0) {
-      return res.status(400).json({ error: "Instructor not available at this time" });
+      return res
+        .status(400)
+        .json({ error: "Instructor not available at this time" });
     }
 
     // ✅ تحقق من التعارض مع سكشن آخر لنفس المدرس
@@ -199,7 +259,9 @@ exports.updateSection = async (req, res) => {
         AND id != ${sectionId}
     `;
     if (conflictInstructor.length > 0) {
-      return res.status(400).json({ error: "Instructor already has a section at this time" });
+      return res
+        .status(400)
+        .json({ error: "Instructor already has a section at this time" });
     }
 
     // ✅ تحقق من التعارض في القاعة
@@ -218,7 +280,9 @@ exports.updateSection = async (req, res) => {
         AND id != ${sectionId}
     `;
     if (conflictRoom.length > 0) {
-      return res.status(400).json({ error: "Room already has a section at this time" });
+      return res
+        .status(400)
+        .json({ error: "Room already has a section at this time" });
     }
 
     // ✅ تحديث السكشن
@@ -242,8 +306,6 @@ exports.updateSection = async (req, res) => {
   }
 };
 
-
-
 /**
  * جلب جميع السكشنز
  */
@@ -263,7 +325,6 @@ exports.getAllSections = async (req, res) => {
   }
 };
 
-
 exports.deleteSection = async (req, res) => {
   try {
     const { sectionId } = req.params;
@@ -273,4 +334,3 @@ exports.deleteSection = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-

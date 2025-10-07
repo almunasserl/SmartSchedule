@@ -21,8 +21,8 @@ exports.signUp = async (req, res) => {
     // لو طالب
     if (role === "student") {
       const studentResult = await sql`
-        INSERT INTO student (name, dept_id, term_id, status, auth_id)
-        VALUES (${name}, ${dept_id}, ${term_id}, ${
+        INSERT INTO student (id,name, dept_id, term_id, status, auth_id)
+        VALUES (${authId},${name}, ${dept_id}, ${term_id}, ${
         status || "regular"
       }, ${authId})
         RETURNING *
@@ -33,8 +33,8 @@ exports.signUp = async (req, res) => {
     // لو أستاذ
     if (role === "faculty") {
       const facultyResult = await sql`
-        INSERT INTO faculty (name, dept_id, auth_id)
-        VALUES (${name}, ${dept_id}, ${authId})
+        INSERT INTO faculty (id,name, dept_id, auth_id)
+        VALUES (${authId},${name}, ${dept_id}, ${authId})
         RETURNING *
       `;
       return res.status(201).json({ user: facultyResult[0], role });
@@ -68,7 +68,9 @@ exports.login = async (req, res) => {
 
     // تحقق من حالة الحساب
     if (user.status !== "active") {
-      return res.status(403).json({ error: "Account is inactive or suspended" });
+      return res
+        .status(403)
+        .json({ error: "Account is inactive or suspended" });
     }
 
     // تحقق من كلمة المرور
@@ -93,7 +95,6 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 exports.requestPasswordReset = async (req, res) => {
   try {
@@ -168,8 +169,6 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-
-
 // تحديث حالة الحساب
 exports.updateUserStatus = async (req, res) => {
   try {
@@ -196,4 +195,3 @@ exports.updateUserStatus = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-

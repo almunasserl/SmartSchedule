@@ -1,6 +1,5 @@
-// src/pages/registrar/Students.jsx
 import React, { useEffect, useState } from "react";
-import { Offcanvas, Button, Spinner } from "react-bootstrap";
+import { Offcanvas, Button, Spinner, Toast, ToastContainer } from "react-bootstrap";
 import { Pie, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -13,20 +12,15 @@ import {
 } from "chart.js";
 import api from "../../Services/apiClient";
 
-ChartJS.register(
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement
-);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function Students() {
   const [students, setStudents] = useState([]);
   const [statusStats, setStatusStats] = useState([]);
   const [deptStats, setDeptStats] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // for update form
+  const [pageLoading, setPageLoading] = useState(true); // for initial page load
+  const [actionId, setActionId] = useState(null); // for per-row loaders
 
   const [terms, setTerms] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -34,18 +28,29 @@ export default function Students() {
   const [editStudent, setEditStudent] = useState(null);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
 
+  // Toast messages
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const showToast = (message, type = "info") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "" }), 2500);
+  };
+
   useEffect(() => {
-    fetchStudents();
-    fetchReports();
-    fetchDropdowns();
+    loadPage();
   }, []);
+
+  const loadPage = async () => {
+    setPageLoading(true);
+    await Promise.all([fetchStudents(), fetchReports(), fetchDropdowns()]);
+    setPageLoading(false);
+  };
 
   const fetchStudents = async () => {
     try {
       const res = await api.get("/students");
       setStudents(res.data);
     } catch (err) {
-      console.error(err);
+      showToast("Failed to load students", "danger");
     }
   };
 
@@ -58,7 +63,7 @@ export default function Students() {
       setStatusStats(statusRes.data || []);
       setDeptStats(deptRes.data || []);
     } catch (err) {
-      console.error(err);
+      showToast("Failed to load reports", "danger");
     }
   };
 
@@ -71,7 +76,7 @@ export default function Students() {
       setTerms(termsRes.data || []);
       setDepartments(deptsRes.data || []);
     } catch (err) {
-      console.error(err);
+      showToast("Failed to load dropdowns", "danger");
     }
   };
 
@@ -80,28 +85,34 @@ export default function Students() {
     setLoading(true);
     try {
       await api.patch(`/students/${editStudent.id}`, editStudent);
-      fetchStudents();
+      showToast("✅ Student updated successfully!", "success");
+      await fetchStudents();
       setShowOffcanvas(false);
       setEditStudent(null);
     } catch (err) {
-      console.error(err);
+      const msg = err.response?.data?.error || "Failed to update student";
+      showToast(msg, "danger");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this student?")) {
-      try {
-        await api.delete(`/students/${id}`);
-        fetchStudents();
-      } catch (err) {
-        console.error(err);
-      }
+    if (!window.confirm("Are you sure you want to delete this student?")) return;
+    setActionId(id);
+    try {
+      await api.delete(`/students/${id}`);
+      showToast("🗑️ Student deleted successfully!", "success");
+      await fetchStudents();
+    } catch (err) {
+      const msg = err.response?.data?.error || "Failed to delete student";
+      showToast(msg, "danger");
+    } finally {
+      setActionId(null);
     }
   };
 
-  // 📊 Pie Data
+  // Pie Chart Data
   const statusData = {
     labels: statusStats.map((s) => s.status),
     datasets: [
@@ -112,7 +123,7 @@ export default function Students() {
     ],
   };
 
-  // 📊 Bar Data
+  // Bar Chart Data
   const deptData = {
     labels: deptStats.map((d) => d.department),
     datasets: [
@@ -130,11 +141,27 @@ export default function Students() {
     plugins: { legend: { display: false } },
   };
 
+  // Page-level loader
+  if (pageLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "80vh" }}>
+        <Spinner animation="border" variant="info" style={{ width: "3rem", height: "3rem" }} />
+      </div>
+    );
+  }
+
   return (
     <div>
+      {/* Toasts */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast bg={toast.type} show={toast.show} onClose={() => setToast({ show: false })}>
+          <Toast.Body className="text-white">{toast.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
+
       <h2 className="mb-4 text-info">Students Management</h2>
 
-      {/* 📊 Reports */}
+      {/* Reports */}
       <div className="row mb-4">
         <div className="col-md-6">
           <div className="card shadow-sm p-3">
@@ -161,7 +188,7 @@ export default function Students() {
         </div>
       </div>
 
-      {/* 📋 Students Table */}
+      {/* Students Table */}
       <div className="card shadow-sm p-3">
         <h5 className="mb-3 text-info">Students List</h5>
         <div className="table-responsive">
@@ -185,21 +212,26 @@ export default function Students() {
                   <td>{s.department_name}</td>
                   <td>{s.term_name}</td>
                   <td>
-                    <button
-                      className="btn btn-sm btn-warning me-2"
+                    <Button
+                      size="sm"
+                      variant="warning"
+                      className="me-2"
                       onClick={() => {
                         setEditStudent(s);
                         setShowOffcanvas(true);
                       }}
+                      disabled={actionId === s.id}
                     >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
+                      {actionId === s.id ? <Spinner size="sm" animation="border" /> : "Edit"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
                       onClick={() => handleDelete(s.id)}
+                      disabled={actionId === s.id}
                     >
-                      Delete
-                    </button>
+                      {actionId === s.id ? <Spinner size="sm" animation="border" /> : "Delete"}
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -215,53 +247,40 @@ export default function Students() {
         </div>
       </div>
 
-      {/* 📝 Offcanvas Edit */}
-      <Offcanvas
-        show={showOffcanvas}
-        onHide={() => setShowOffcanvas(false)}
-        placement="end"
-      >
+      {/* Edit Offcanvas */}
+      <Offcanvas show={showOffcanvas} onHide={() => setShowOffcanvas(false)} placement="end">
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>Edit Student</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           {editStudent && (
             <>
-              {/* Name */}
               <div className="mb-3">
                 <label className="form-label">Name</label>
                 <input
                   type="text"
                   className="form-control"
                   value={editStudent.name}
-                  onChange={(e) =>
-                    setEditStudent({ ...editStudent, name: e.target.value })
-                  }
+                  onChange={(e) => setEditStudent({ ...editStudent, name: e.target.value })}
                 />
               </div>
 
-              {/* Status */}
               <div className="mb-3">
                 <label className="form-label">Status</label>
                 <input
                   type="text"
                   className="form-control"
                   value={editStudent.status}
-                  onChange={(e) =>
-                    setEditStudent({ ...editStudent, status: e.target.value })
-                  }
+                  onChange={(e) => setEditStudent({ ...editStudent, status: e.target.value })}
                 />
               </div>
 
-              {/* Department */}
               <div className="mb-3">
                 <label className="form-label">Department</label>
                 <select
                   className="form-select"
                   value={editStudent.dept_id}
-                  onChange={(e) =>
-                    setEditStudent({ ...editStudent, dept_id: e.target.value })
-                  }
+                  onChange={(e) => setEditStudent({ ...editStudent, dept_id: e.target.value })}
                 >
                   <option value="">-- Select Department --</option>
                   {departments.map((d) => (
@@ -272,15 +291,12 @@ export default function Students() {
                 </select>
               </div>
 
-              {/* Term */}
               <div className="mb-3">
                 <label className="form-label">Term</label>
                 <select
                   className="form-select"
                   value={editStudent.term_id}
-                  onChange={(e) =>
-                    setEditStudent({ ...editStudent, term_id: e.target.value })
-                  }
+                  onChange={(e) => setEditStudent({ ...editStudent, term_id: e.target.value })}
                 >
                   <option value="">-- Select Term --</option>
                   {terms.map((t) => (
@@ -292,13 +308,15 @@ export default function Students() {
               </div>
 
               <Button
-                className="w-100"
+                className="w-100 mt-2"
                 variant="info"
                 onClick={handleUpdate}
                 disabled={loading}
               >
                 {loading ? (
-                  <Spinner animation="border" size="sm" />
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" /> Updating...
+                  </>
                 ) : (
                   "Update Student"
                 )}

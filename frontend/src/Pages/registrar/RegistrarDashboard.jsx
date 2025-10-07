@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../Services/apiClient";
+import { Toast, ToastContainer, Spinner } from "react-bootstrap";
 
 export default function RegistrarDashboard() {
   const [stats, setStats] = useState({
@@ -26,8 +27,32 @@ export default function RegistrarDashboard() {
 
   const [loadingPage, setLoadingPage] = useState(true);
   const [loadingBtn, setLoadingBtn] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(null);
 
-  // 📌 جلب التقارير + المستخدمين
+  // ✅ Toast
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const showToast = (message, type = "info") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "" }), 3000);
+  };
+
+  // ✅ Email validation
+  const [emailError, setEmailError] = useState("");
+
+  const validateEmail = (email, role) => {
+    if (!email || !role) return "";
+    if (role === "student") {
+      const pattern = /^[0-9]{9}@student\.ksu\.com$/;
+      return pattern.test(email)
+        ? ""
+        : "Student email must be 9 digits followed by @student.ksu.com";
+    } else {
+      const pattern = /^[A-Za-z0-9._%+-]+@ksu\.com$/;
+      return pattern.test(email) ? "" : "Email must end with @ksu.com";
+    }
+  };
+
+  // 📌 Fetch data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -47,8 +72,8 @@ export default function RegistrarDashboard() {
           surveys: sv.data.total_surveys,
         });
         setUsers(us.data);
-      } catch (err) {
-        console.error("Error loading data", err);
+      } catch {
+        showToast("Error loading data", "danger");
       } finally {
         setLoadingPage(false);
       }
@@ -56,17 +81,22 @@ export default function RegistrarDashboard() {
     fetchData();
   }, []);
 
-  // 📌 جلب الدروب داون
+  // 📌 Dropdowns
   useEffect(() => {
     apiClient.get("/dropdowns/departments").then((res) => setDepartments(res.data));
     apiClient.get("/dropdowns/terms").then((res) => setTerms(res.data));
   }, []);
 
-  // 📌 إضافة مستخدم جديد
+  // 📌 Add new user
   const handleAddUser = async () => {
+    const errorMsg = validateEmail(formData.email, formData.role);
+    setEmailError(errorMsg);
+    if (errorMsg) return;
+
     try {
       setLoadingBtn(true);
       await apiClient.post("/auth/signup", formData);
+      showToast("✅ User added successfully!", "success");
       setShowModal(false);
       setFormData({
         email: "",
@@ -80,36 +110,36 @@ export default function RegistrarDashboard() {
       const refreshed = await apiClient.get("/auth/users");
       setUsers(refreshed.data);
     } catch (err) {
-      console.error("Error adding user:", err);
+      showToast(err.response?.data?.error || "Error adding user", "danger");
     } finally {
       setLoadingBtn(false);
     }
   };
 
-  // 📌 تحديث حالة المستخدم
+  // 📌 Toggle status
   const toggleStatus = async (id, currentStatus) => {
+    setStatusLoading(id);
     try {
       const newStatus = currentStatus === "active" ? "inactive" : "active";
       await apiClient.patch(`/auth/users/${id}/status`, { status: newStatus });
+      showToast(`User status updated to ${newStatus}`, "info");
       setUsers((prev) =>
-        prev.map((u) =>
-          u.id === id ? { ...u, status: newStatus } : u
-        )
+        prev.map((u) => (u.id === id ? { ...u, status: newStatus } : u))
       );
-    } catch (err) {
-      console.error("Error updating status:", err);
+    } catch {
+      showToast("Error updating status", "danger");
+    } finally {
+      setStatusLoading(null);
     }
   };
 
-  // 📌 فلترة المستخدمين
   const filteredUsers =
     filter === "all" ? users : users.filter((u) => u.status === filter);
 
-  // ================== UI ==================
   if (loadingPage) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
-        <div className="spinner-border text-info" style={{ width: "3rem", height: "3rem" }} />
+        <Spinner animation="border" variant="info" style={{ width: "3rem", height: "3rem" }} />
       </div>
     );
   }
@@ -118,7 +148,14 @@ export default function RegistrarDashboard() {
     <div>
       <h2 className="mb-4 text-info">Registrar Dashboard</h2>
 
-      {/* الكروت */}
+      {/* ✅ Toast Notification */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast bg={toast.type} show={toast.show} onClose={() => setToast({ show: false })}>
+          <Toast.Body className="text-white">{toast.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
+
+      {/* Stats cards */}
       <div className="row g-3 mb-4">
         {[
           { label: "Total Students", value: stats.students },
@@ -138,7 +175,7 @@ export default function RegistrarDashboard() {
         ))}
       </div>
 
-      {/* التحكم بالمستخدمين */}
+      {/* Manage Users */}
       <div className="card shadow-sm border-0">
         <div className="card-body">
           <div className="d-flex justify-content-between mb-3">
@@ -146,12 +183,16 @@ export default function RegistrarDashboard() {
             <button
               className="btn btn-info text-white"
               onClick={() => setShowModal(true)}
+              disabled={loadingBtn}
             >
-              + Add User
+              {loadingBtn ? (
+                <Spinner animation="border" size="sm" className="me-2" />
+              ) : (
+                "+ Add User"
+              )}
             </button>
           </div>
 
-          {/* فلترة */}
           <div className="mb-3">
             <select
               className="form-select w-auto"
@@ -164,7 +205,6 @@ export default function RegistrarDashboard() {
             </select>
           </div>
 
-          {/* جدول */}
           <div className="table-responsive">
             <table className="table table-bordered text-center align-middle">
               <thead className="table-light">
@@ -187,8 +227,15 @@ export default function RegistrarDashboard() {
                           u.status === "active" ? "btn-danger" : "btn-success"
                         }`}
                         onClick={() => toggleStatus(u.id, u.status)}
+                        disabled={statusLoading === u.id}
                       >
-                        {u.status === "active" ? "Deactivate" : "Activate"}
+                        {statusLoading === u.id ? (
+                          <Spinner size="sm" animation="border" />
+                        ) : u.status === "active" ? (
+                          "Deactivate"
+                        ) : (
+                          "Activate"
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -199,7 +246,7 @@ export default function RegistrarDashboard() {
         </div>
       </div>
 
-      {/* مودال إضافة مستخدم */}
+      {/* Offcanvas Add User */}
       {showModal && (
         <div
           className="offcanvas offcanvas-end show"
@@ -208,57 +255,60 @@ export default function RegistrarDashboard() {
         >
           <div className="offcanvas-header border-bottom">
             <h5 className="offcanvas-title">Add User</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setShowModal(false)}
-            ></button>
+            <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
           </div>
+
           <div className="offcanvas-body">
-            {/* بيانات auth */}
             <div className="mb-3">
               <label className="form-label">Name</label>
               <input
                 type="text"
                 className="form-control"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
-            <div className="mb-3">
+
+            <div className="mb-2">
               <label className="form-label">Email</label>
               <input
                 type="email"
-                className="form-control"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
+                className={`form-control ${emailError ? "is-invalid" : ""}`}
+                placeholder={
+                  formData.role === "student"
+                    ? "Example: 123456789@student.ksu.com"
+                    : "Example: user@ksu.com"
                 }
+                value={formData.email}
+                onChange={(e) => {
+                  const email = e.target.value;
+                  setFormData({ ...formData, email });
+                  setEmailError(validateEmail(email, formData.role));
+                }}
               />
+              {emailError && <div className="invalid-feedback">{emailError}</div>}
             </div>
+
             <div className="mb-3">
               <label className="form-label">Phone</label>
               <input
                 type="text"
                 className="form-control"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
 
-            {/* اختيار الرول */}
             <div className="mb-3">
               <label className="form-label">Role</label>
               <select
                 className="form-select"
                 value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
+                onChange={(e) => {
+                  const role = e.target.value;
+                  setFormData({ ...formData, role });
+                  setEmailError(validateEmail(formData.email, role));
+                }}
               >
                 <option value="">Select Role</option>
                 <option value="student">Student</option>
@@ -268,7 +318,7 @@ export default function RegistrarDashboard() {
               </select>
             </div>
 
-            {/* الحقول حسب الرول */}
+            {/* Student-specific fields */}
             {formData.role === "student" && (
               <>
                 <div className="mb-3">
@@ -276,9 +326,7 @@ export default function RegistrarDashboard() {
                   <select
                     className="form-select"
                     value={formData.dept_id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, dept_id: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, dept_id: e.target.value })}
                   >
                     <option value="">Select Department</option>
                     {departments.map((d) => (
@@ -294,9 +342,7 @@ export default function RegistrarDashboard() {
                   <select
                     className="form-select"
                     value={formData.term_id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, term_id: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, term_id: e.target.value })}
                   >
                     <option value="">Select Term</option>
                     {terms.map((t) => (
@@ -312,9 +358,7 @@ export default function RegistrarDashboard() {
                   <select
                     className="form-select"
                     value={formData.status}
-                    onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   >
                     <option value="regular">Regular</option>
                     <option value="irregular">Irregular</option>
@@ -329,9 +373,7 @@ export default function RegistrarDashboard() {
                 <select
                   className="form-select"
                   value={formData.dept_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dept_id: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, dept_id: e.target.value })}
                 >
                   <option value="">Select Department</option>
                   {departments.map((d) => (
@@ -349,10 +391,9 @@ export default function RegistrarDashboard() {
               disabled={loadingBtn}
             >
               {loadingBtn ? (
-                <div
-                  className="spinner-border spinner-border-sm text-light"
-                  role="status"
-                />
+                <>
+                  <Spinner size="sm" animation="border" className="me-2" /> Saving...
+                </>
               ) : (
                 "Save"
               )}

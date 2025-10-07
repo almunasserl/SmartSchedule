@@ -1,11 +1,11 @@
-// src/pages/Feedback.jsx
 import React, { useEffect, useState } from "react";
-import { Spinner, Offcanvas } from "react-bootstrap";
+import { Spinner, Offcanvas, Toast, ToastContainer, Button } from "react-bootstrap";
 import api from "../../Services/apiClient";
 
 export default function Feedback() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState("");
@@ -16,6 +16,13 @@ export default function Feedback() {
   const [showDetail, setShowDetail] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
 
+  // Toast (messages)
+  const [toast, setToast] = useState({ show: false, message: "", type: "info" });
+  const showToast = (message, type = "info") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "info" }), 2500);
+  };
+
   useEffect(() => {
     fetchFeedbacks();
   }, []);
@@ -25,8 +32,10 @@ export default function Feedback() {
     try {
       const res = await api.get("/feedback");
       setFeedbacks(res.data || []);
+      showToast("✅ Feedback loaded successfully", "success");
     } catch (err) {
       console.error(err);
+      showToast("❌ Failed to load feedback", "danger");
     } finally {
       setLoading(false);
     }
@@ -42,7 +51,38 @@ export default function Feedback() {
 
   return (
     <div>
-      <h3 className="text-info mb-3">Feedback</h3>
+      {/* 🔔 Toast messages */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast
+          bg={toast.type}
+          show={toast.show}
+          onClose={() => setToast({ show: false })}
+        >
+          <Toast.Body className="text-white">{toast.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
+
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h3 className="text-info m-0">Feedback</h3>
+        <Button
+          variant="outline-info"
+          size="sm"
+          disabled={actionLoading}
+          onClick={async () => {
+            setActionLoading(true);
+            await fetchFeedbacks();
+            setActionLoading(false);
+          }}
+        >
+          {actionLoading ? (
+            <>
+              <Spinner animation="border" size="sm" className="me-2" /> Refreshing...
+            </>
+          ) : (
+            "Refresh"
+          )}
+        </Button>
+      </div>
 
       {/* Filters */}
       <div className="d-flex flex-wrap gap-2 mb-3">
@@ -81,7 +121,7 @@ export default function Feedback() {
       {/* Table */}
       {loading ? (
         <div className="text-center py-5">
-          <Spinner animation="border" variant="info" />
+          <Spinner animation="border" variant="info" style={{ width: "3rem", height: "3rem" }} />
         </div>
       ) : (
         <div className="table-responsive">
@@ -119,15 +159,16 @@ export default function Feedback() {
                   <td>{f.text.length > 50 ? f.text.substring(0, 50) + "…" : f.text}</td>
                   <td>{new Date(f.created_at).toLocaleDateString()}</td>
                   <td>
-                    <button
-                      className="btn btn-sm btn-outline-info"
+                    <Button
+                      variant="outline-info"
+                      size="sm"
                       onClick={() => {
                         setSelectedFeedback(f);
                         setShowDetail(true);
                       }}
                     >
                       View
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

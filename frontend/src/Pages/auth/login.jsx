@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import apiClient from "../../Services/apiClient";
 import { useAuth } from "../../Hooks/AuthContext";
 
@@ -26,7 +26,8 @@ export default function Login() {
         setTimeout(() => {
           const decoded = JSON.parse(atob(res.data.token.split(".")[1]));
           if (decoded.role === "faculty") navigate("/faculty");
-          else if (decoded.role === "registrar" || decoded.role === "committee") navigate("/registrar");
+          else if (decoded.role === "registrar" || decoded.role === "committee")
+            navigate("/registrar");
           else if (decoded.role === "student") navigate("/student");
         }, 1500);
       }
@@ -61,7 +62,7 @@ export default function Login() {
             />
           </div>
 
-          <div className="mb-3">
+          <div className="mb-2">
             <label className="form-label fw-bold">Password</label>
             <input
               type="password"
@@ -71,6 +72,16 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+
+          {/* ✅ Forgot Password link restored */}
+          <div className="text-end mb-3">
+            <Link
+              to="/forgot-password"
+              className="text-decoration-none text-info fw-semibold small"
+            >
+              Forgot Password?
+            </Link>
           </div>
 
           <button

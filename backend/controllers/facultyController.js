@@ -38,8 +38,6 @@ exports.getFacultySections = async (req, res) => {
   }
 };
 
-
-
 /**
  * إضافة توفر الأستاذ
  */
@@ -146,5 +144,3 @@ exports.getFacultyStats = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-

@@ -1,8 +1,7 @@
-// src/pages/registrar/RegistrarSchedules.jsx
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../Services/apiClient";
-import { Modal, Button, Spinner } from "react-bootstrap";
+import { Modal, Button, Spinner, Toast, ToastContainer } from "react-bootstrap";
 import { useAuth } from "../../Hooks/AuthContext";
 
 export default function RegistrarSchedules() {
@@ -12,7 +11,17 @@ export default function RegistrarSchedules() {
   const [departments, setDepartments] = useState([]);
   const [terms, setTerms] = useState([]);
   const [pageLoading, setPageLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
+
+  // loaders for actions
+  const [loadingCreate, setLoadingCreate] = useState(false);
+  const [loadingId, setLoadingId] = useState(null); // specific id for delete/approve/publish
+
+  // toast
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const showToast = (message, type = "info") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "" }), 2500);
+  };
 
   // filters
   const [statusFilter, setStatusFilter] = useState("");
@@ -20,7 +29,7 @@ export default function RegistrarSchedules() {
   const [deptFilter, setDeptFilter] = useState("");
   const [search, setSearch] = useState("");
 
-  // modal states
+  // modal
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
   const [termId, setTermId] = useState("");
@@ -41,7 +50,7 @@ export default function RegistrarSchedules() {
       const res = await api.get("/schedules");
       setSchedules(res.data);
     } catch (err) {
-      console.error(err);
+      showToast("Error loading schedules", "danger");
     }
   };
 
@@ -50,25 +59,30 @@ export default function RegistrarSchedules() {
       const res = await api.get("/schedules/stats");
       setStats(res.data.overall);
     } catch (err) {
-      console.error(err);
+      showToast("Error loading statistics", "danger");
     }
   };
 
   const fetchDropdowns = async () => {
     try {
-      const resDepartments = await api.get("/dropdowns/departments");
-      const resTerms = await api.get("/dropdowns/terms");
+      const [resDepartments, resTerms] = await Promise.all([
+        api.get("/dropdowns/departments"),
+        api.get("/dropdowns/terms"),
+      ]);
       setDepartments(resDepartments.data || []);
       setTerms(resTerms.data || []);
     } catch (err) {
-      console.error(err);
+      showToast("Error loading dropdowns", "danger");
     }
   };
 
   // create schedule
   const handleCreate = async () => {
-    if (!title || !termId || !deptId) return;
-    setLoading(true);
+    if (!title || !termId || !deptId) {
+      showToast("Please fill all fields", "warning");
+      return;
+    }
+    setLoadingCreate(true);
     try {
       await api.post("/schedules", {
         title,
@@ -78,12 +92,12 @@ export default function RegistrarSchedules() {
       });
       setShowModal(false);
       resetForm();
-      fetchSchedules();
-      fetchStats();
+      await Promise.all([fetchSchedules(), fetchStats()]);
+      showToast("✅ Schedule created successfully!", "success");
     } catch (err) {
-      console.error(err);
+      showToast("Failed to create schedule", "danger");
     } finally {
-      setLoading(false);
+      setLoadingCreate(false);
     }
   };
 
@@ -93,43 +107,50 @@ export default function RegistrarSchedules() {
     setDeptId("");
   };
 
-  // delete schedule
+  // delete
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this schedule?")) return;
+    setLoadingId(id);
     try {
       await api.delete(`/schedules/${id}`);
-      fetchSchedules();
-      fetchStats();
+      await Promise.all([fetchSchedules(), fetchStats()]);
+      showToast("🗑️ Schedule deleted successfully", "success");
     } catch (err) {
-      console.error(err);
+      showToast("Failed to delete schedule", "danger");
+    } finally {
+      setLoadingId(null);
     }
   };
 
-  // approve schedule
+  // approve
   const handleApprove = async (id) => {
+    setLoadingId(id);
     try {
-      await api.put(`/schedules/${id}/approve`, {
-        approved_by: user?.id || 1,
-      });
-      fetchSchedules();
-      fetchStats();
+      await api.put(`/schedules/${id}/approve`, { approved_by: user?.id || 1 });
+      await Promise.all([fetchSchedules(), fetchStats()]);
+      showToast("✅ Schedule approved successfully!", "success");
     } catch (err) {
-      console.error(err);
+      showToast("Error approving schedule", "danger");
+    } finally {
+      setLoadingId(null);
     }
   };
 
-  // publish schedule
+  // publish
   const handlePublish = async (id) => {
+    setLoadingId(id);
     try {
       await api.put(`/schedules/${id}/publish`);
-      fetchSchedules();
-      fetchStats();
+      await Promise.all([fetchSchedules(), fetchStats()]);
+      showToast("🚀 Schedule published successfully!", "success");
     } catch (err) {
-      console.error(err);
+      showToast("Error publishing schedule", "danger");
+    } finally {
+      setLoadingId(null);
     }
   };
 
-  // filters
+  // filter logic
   const filteredSchedules = schedules.filter((s) => {
     const matchesStatus = statusFilter ? s.status === statusFilter : true;
     const matchesDept = deptFilter ? s.dept_id?.toString() === deptFilter : true;
@@ -143,28 +164,32 @@ export default function RegistrarSchedules() {
 
   return (
     <div>
-      {pageLoading ? (
-        <div
-          className="d-flex justify-content-center align-items-center"
-          style={{ minHeight: "60vh" }}
+      {/* Toast container */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast
+          bg={toast.type}
+          show={toast.show}
+          onClose={() => setToast({ show: false })}
         >
+          <Toast.Body className="text-white">{toast.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
+
+      {pageLoading ? (
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
           <Spinner animation="border" variant="info" />
         </div>
       ) : (
         <>
-          {/* header */}
+          {/* Header */}
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h3 className="text-info">Schedules</h3>
-            <Button
-              variant="info"
-              className="text-white"
-              onClick={() => setShowModal(true)}
-            >
+            <Button variant="info" className="text-white" onClick={() => setShowModal(true)}>
               + Create Schedule
             </Button>
           </div>
 
-          {/* stats cards */}
+          {/* Stats */}
           {stats && (
             <div className="row mb-4 g-3">
               {[
@@ -185,7 +210,7 @@ export default function RegistrarSchedules() {
             </div>
           )}
 
-          {/* filters */}
+          {/* Filters */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3 text-info">Filter Schedules</h5>
@@ -212,7 +237,9 @@ export default function RegistrarSchedules() {
                   >
                     <option value="">All Terms</option>
                     {terms.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -225,7 +252,9 @@ export default function RegistrarSchedules() {
                   >
                     <option value="">All Departments</option>
                     {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -243,7 +272,7 @@ export default function RegistrarSchedules() {
             </div>
           </div>
 
-          {/* table */}
+          {/* Table */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3 text-info">Schedules List</h5>
@@ -290,29 +319,52 @@ export default function RegistrarSchedules() {
                           >
                             View
                           </Link>
+
                           {user?.role === "committee" && s.status === "draft" && (
-                            <button
-                              className="btn btn-sm btn-success me-2"
+                            <Button
+                              size="sm"
+                              variant="success"
+                              className="me-2"
+                              disabled={loadingId === s.id}
                               onClick={() => handleApprove(s.id)}
                             >
-                              Approve
-                            </button>
+                              {loadingId === s.id ? (
+                                <Spinner size="sm" animation="border" />
+                              ) : (
+                                "Approve"
+                              )}
+                            </Button>
                           )}
+
                           {(user?.role === "committee" || user?.role === "registrar") &&
                             s.status === "approved" && (
-                              <button
-                                className="btn btn-sm btn-primary me-2"
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                className="me-2"
+                                disabled={loadingId === s.id}
                                 onClick={() => handlePublish(s.id)}
                               >
-                                Publish
-                              </button>
+                                {loadingId === s.id ? (
+                                  <Spinner size="sm" animation="border" />
+                                ) : (
+                                  "Publish"
+                                )}
+                              </Button>
                             )}
-                          <button
-                            className="btn btn-sm btn-danger"
+
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={loadingId === s.id}
                             onClick={() => handleDelete(s.id)}
                           >
-                            Delete
-                          </button>
+                            {loadingId === s.id ? (
+                              <Spinner size="sm" animation="border" />
+                            ) : (
+                              "Delete"
+                            )}
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -329,7 +381,7 @@ export default function RegistrarSchedules() {
             </div>
           </div>
 
-          {/* modal */}
+          {/* Modal Create */}
           <Modal show={showModal} onHide={() => setShowModal(false)} centered>
             <Modal.Header closeButton>
               <Modal.Title>Create Schedule</Modal.Title>
@@ -352,7 +404,9 @@ export default function RegistrarSchedules() {
                 >
                   <option value="">Select Term</option>
                   {terms.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -365,7 +419,9 @@ export default function RegistrarSchedules() {
                 >
                   <option value="">Select Department</option>
                   {departments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -374,8 +430,8 @@ export default function RegistrarSchedules() {
               <Button variant="secondary" onClick={() => setShowModal(false)}>
                 Cancel
               </Button>
-              <Button variant="info" onClick={handleCreate} disabled={loading}>
-                {loading ? <Spinner size="sm" animation="border" /> : "Create"}
+              <Button variant="info" onClick={handleCreate} disabled={loadingCreate}>
+                {loadingCreate ? <Spinner size="sm" animation="border" /> : "Create"}
               </Button>
             </Modal.Footer>
           </Modal>

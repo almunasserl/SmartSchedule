@@ -1,6 +1,5 @@
 const sql = require("../config/db");
 
-
 // جلب كل الطلاب
 exports.getAllStudents = async (req, res) => {
   try {
@@ -17,8 +16,6 @@ exports.getAllStudents = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 // تعديل بيانات طالب
 exports.updateStudent = async (req, res) => {
@@ -69,13 +66,14 @@ exports.deleteStudent = async (req, res) => {
     // حذف الحساب المرتبط
     await sql`DELETE FROM auth WHERE id = ${authId}`;
 
-    res.json({ message: "Student and related auth deleted successfully", student: student[0] });
+    res.json({
+      message: "Student and related auth deleted successfully",
+      student: student[0],
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 /**
  * 1) عرض المواد الخاصة بالطالب لهذا الترم
@@ -192,8 +190,6 @@ exports.enrollInSection = async (req, res) => {
   }
 };
 
-
-
 /**
  * 4) عرض الجدول الخاص بالطالب
  */
@@ -230,7 +226,6 @@ exports.getStudentSchedule = async (req, res) => {
   }
 };
 
-
 /**
  * 5) إحصائيات المواد الخاصة بالطالب
  */
@@ -259,5 +254,3 @@ exports.getStudentStats = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
