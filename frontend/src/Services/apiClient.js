@@ -5,15 +5,26 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Interceptors
+// ✅ Interceptors
 apiClient.interceptors.request.use((config) => {
+  // Skip token logic for public routes
+  const publicPaths = [
+    "/auth/login",
+    "/auth/signup",
+    "/auth/request-password-reset",
+    "/auth/reset-password",
+  ];
+  const isPublic = publicPaths.some((path) => config.url.includes(path));
+
+  if (isPublic) return config; // skip token validation entirely
+
   const token = localStorage.getItem("token");
   const expiry = localStorage.getItem("token_expiry");
 
+  // Check token expiry
   if (expiry && Date.now() > Number(expiry)) {
     localStorage.removeItem("token");
     localStorage.removeItem("token_expiry");
-    // نخلي React يقرر التوجيه بدل refresh
     window.dispatchEvent(new Event("tokenExpired"));
     return Promise.reject(new Error("Token expired"));
   }

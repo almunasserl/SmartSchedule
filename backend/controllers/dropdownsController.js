@@ -18,7 +18,7 @@ exports.getDepartments = async (req, res) => {
  */
 exports.getTerms = async (req, res) => {
   try {
-    const result = await sql`SELECT id, name FROM term ORDER BY id ASC`;
+    const result = await sql`SELECT id, name FROM level ORDER BY id ASC`;
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -47,18 +47,6 @@ exports.getWorkingDays = async (req, res) => {
 /**
  * 4) جلب أسماء الجداول مع الـ id
  */
-exports.getSchedulesList = async (req, res) => {
-  try {
-    const result = await sql`
-      SELECT id, title
-      FROM schedule
-      ORDER BY created_at DESC
-    `;
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
 /**
  * جلب الكورسات (id + name)
@@ -66,9 +54,9 @@ exports.getSchedulesList = async (req, res) => {
 exports.getCoursesList = async (req, res) => {
   try {
     const result = await sql`
-      SELECT id, name 
+      SELECT id, code
       FROM courses
-      ORDER BY name ASC
+      ORDER BY code ASC
     `;
     res.json(result);
   } catch (err) {
@@ -109,5 +97,3 @@ exports.getRoomsList = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-

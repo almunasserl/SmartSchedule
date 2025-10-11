@@ -15,6 +15,7 @@ import RegistrarLayout from "./Components/layouts/RegistrarLayout";
 import Login from "./Pages/auth/login";
 import ForgotPassword from "./Pages/auth/ForgotPassword";
 import ResetPassword from "./Pages/auth/ResetPassword";
+import SignUp from "./Pages/auth/SignUp";
 
 // Pages (Faculty)
 import FacultyDashboard from "./Pages/faculty/FacultyDashboard";
@@ -34,8 +35,8 @@ import StudentFeedback from "./Pages/student/StudentFeedback";
 
 // Pages (Registrar)
 import RegistrarDashboard from "./Pages/registrar/RegistrarDashboard";
- import Schedules from "./Pages/registrar/Schedules";
-import ScheduleDetails from "./Pages/registrar/ScheduleDetails";
+import Schedules from "./Pages/registrar/Schedules";
+
 import Sections from "./Pages/registrar/Sections";
 import Students from "./Pages/registrar/Students";
 import Courses from "./Pages/registrar/Cources";
@@ -43,7 +44,7 @@ import Surveys from "./Pages/registrar/Surveys";
 import Feedback from "./Pages/registrar/Feedback";
 import Notifications from "./Pages/registrar/Notifications";
 import Rules from "./Pages/registrar/Rules";
-
+import IrregularStudents from "./Pages/registrar/IrregularStudents";
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/signup" element={<SignUp />} />
 
         {/* Redirect Root to Committee (ممكن تغيريها حسب اللي تحبي) */}
         <Route path="/" element={<Navigate to="/login" replace />} />
@@ -67,12 +69,14 @@ function App() {
           <Route path="availability" element={<FacultyAvailability />} />
         </Route>
 
-
         {/* Student Routes */}
         <Route path="/student" element={<StudentLayout />}>
           <Route index element={<StudentDashboard />} /> {/* /students */}
           <Route path="courses" element={<StudentCourses />} />
-          <Route path="courses/:courseId/sections" element={<StudentSections />} />
+          <Route
+            path="courses/:courseId/sections"
+            element={<StudentSections />}
+          />
           <Route path="surveys" element={<StudentSurveys />} />
           <Route path="surveys/:surveyId" element={<StudentSurveyDetails />} />
           <Route path="feedback" element={<StudentFeedback />} />
@@ -82,7 +86,6 @@ function App() {
         <Route path="/registrar" element={<RegistrarLayout />}>
           <Route index element={<RegistrarDashboard />} /> {/* /registrar */}
           <Route path="schedules" element={<Schedules />} />
-          <Route path="schedules/:id" element={<ScheduleDetails />} />
           <Route path="sections" element={<Sections />} />
           <Route path="students" element={<Students />} />
           <Route path="courses" element={<Courses />} />
@@ -90,8 +93,7 @@ function App() {
           <Route path="feedback" element={<Feedback />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="rules" element={<Rules />} />
-
-
+          <Route path="irregular-students" element={<IrregularStudents />} />
         </Route>
       </Routes>
     </Router>

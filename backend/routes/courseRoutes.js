@@ -5,13 +5,15 @@ const {
   
   addCourse,
   updateCourse,
-  deleteCourse
+  deleteCourse,
+  getCourseById
 } = require("../controllers/courseController");
 
 // جلب كل الكورسات
 router.get("/", getCourses);
 
 // جلب كورس محدد
+router.get("/:id", getCourseById);
 
 
 // إضافة كورس

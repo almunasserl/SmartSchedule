@@ -26,8 +26,9 @@ export default function Login() {
         setTimeout(() => {
           const decoded = JSON.parse(atob(res.data.token.split(".")[1]));
           if (decoded.role === "faculty") navigate("/faculty");
-          else if (decoded.role === "registrar" || decoded.role === "committee")
-            navigate("/registrar");
+          else if (decoded.role === "registrar") navigate("/registrar");
+          else if (decoded.role === "committee") navigate("/registrar");
+  
           else if (decoded.role === "student") navigate("/student");
         }, 1500);
       }
@@ -94,6 +95,17 @@ export default function Login() {
             )}
             {loading ? "Logging in..." : "Login"}
           </button>
+          <div className="text-center mt-3">
+            <span className="small">
+              Don’t have an account?{" "}
+              <Link
+                to="/signup"
+                className="text-decoration-none text-info fw-semibold"
+              >
+                Sign up here
+              </Link>
+            </span>
+          </div>
         </form>
       </div>
     </div>

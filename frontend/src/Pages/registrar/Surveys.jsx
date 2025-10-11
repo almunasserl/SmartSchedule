@@ -17,14 +17,14 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Le
 export default function Surveys() {
   const [stats, setStats] = useState(null);
   const [departments, setDepartments] = useState([]);
-  const [terms, setTerms] = useState([]);
+  const [levels, setLevels] = useState([]);
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState(null);
 
   // Filters
   const [selectedDept, setSelectedDept] = useState("");
-  const [selectedTerm, setSelectedTerm] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState("");
   const [search, setSearch] = useState("");
 
   // Offcanvas (View results)
@@ -38,7 +38,7 @@ export default function Surveys() {
   const [newSurvey, setNewSurvey] = useState({
     title: "",
     dept_id: "",
-    term_id: "",
+    level_id: "",
     start_date: "",
     end_date: "",
   });
@@ -57,7 +57,7 @@ export default function Surveys() {
 
   const loadPage = async () => {
     setLoading(true);
-    await Promise.all([fetchReports(), fetchDepartments(), fetchTerms(), fetchSurveys()]);
+    await Promise.all([fetchReports(), fetchDepartments(), fetchLevels(), fetchSurveys()]);
     setLoading(false);
   };
 
@@ -91,12 +91,12 @@ export default function Surveys() {
     }
   };
 
-  const fetchTerms = async () => {
+  const fetchLevels = async () => {
     try {
       const res = await api.get("/dropdowns/terms");
-      setTerms(res.data || []);
+      setLevels(res.data || []);
     } catch {
-      showToast("Failed to load terms", "danger");
+      showToast("Failed to load levels", "danger");
     }
   };
 
@@ -126,7 +126,7 @@ export default function Surveys() {
   };
 
   const handleCreate = async () => {
-    if (!newSurvey.title || !newSurvey.dept_id || !newSurvey.term_id) {
+    if (!newSurvey.title || !newSurvey.dept_id || !newSurvey.level_id) {
       showToast("Please fill all required fields", "warning");
       return;
     }
@@ -138,7 +138,7 @@ export default function Surveys() {
       setNewSurvey({
         title: "",
         dept_id: "",
-        term_id: "",
+        level_id: "",
         start_date: "",
         end_date: "",
       });
@@ -153,9 +153,9 @@ export default function Surveys() {
 
   const filteredSurveys = surveys.filter((s) => {
     const matchDept = selectedDept ? s.dept_id.toString() === selectedDept : true;
-    const matchTerm = selectedTerm ? s.term_id.toString() === selectedTerm : true;
+    const matchLevel = selectedLevel ? s.level_id.toString() === selectedLevel : true;
     const matchSearch = s.title.toLowerCase().includes(search.toLowerCase());
-    return matchDept && matchTerm && matchSearch;
+    return matchDept && matchLevel && matchSearch;
   });
 
   if (loading) {
@@ -243,11 +243,11 @@ export default function Surveys() {
               </select>
               <select
                 className="form-select w-auto"
-                value={selectedTerm}
-                onChange={(e) => setSelectedTerm(e.target.value)}
+                value={selectedLevel}
+                onChange={(e) => setSelectedLevel(e.target.value)}
               >
-                <option value="">All Terms</option>
-                {terms.map((t) => (
+                <option value="">All Levels</option>
+                {levels.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
@@ -270,7 +270,7 @@ export default function Surveys() {
                   <th>ID</th>
                   <th>Title</th>
                   <th>Department</th>
-                  <th>Term</th>
+                  <th>Level</th>
                   <th>Start</th>
                   <th>End</th>
                   <th>Status</th>
@@ -287,7 +287,7 @@ export default function Surveys() {
                       <td>{s.id}</td>
                       <td>{s.title}</td>
                       <td>{s.dept_name}</td>
-                      <td>{s.term_name}</td>
+                      <td>{s.level_name}</td>
                       <td>{new Date(s.start_date).toLocaleDateString()}</td>
                       <td>{new Date(s.end_date).toLocaleDateString()}</td>
                       <td>
@@ -443,14 +443,14 @@ export default function Surveys() {
             </select>
           </div>
           <div className="mb-3">
-            <label className="form-label">Term</label>
+            <label className="form-label">Level</label>
             <select
               className="form-select"
-              value={newSurvey.term_id}
-              onChange={(e) => setNewSurvey({ ...newSurvey, term_id: e.target.value })}
+              value={newSurvey.level_id}
+              onChange={(e) => setNewSurvey({ ...newSurvey, level_id: e.target.value })}
             >
-              <option value="">Select Term</option>
-              {terms.map((t) => (
+              <option value="">Select Level</option>
+              {levels.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>

@@ -4,7 +4,7 @@ const sql = require("../config/db");
 exports.getAllSurveys = async (req, res) => {
   try {
     const result = await sql`
-      SELECT s.*, d.name AS dept_name, t.name AS term_name,
+      SELECT s.*, d.name AS dept_name, t.name AS level_name,
         CASE
           WHEN s.start_date <= NOW() AND s.end_date >= NOW() THEN 'active'
           WHEN s.end_date < NOW() THEN 'closed'
@@ -12,7 +12,7 @@ exports.getAllSurveys = async (req, res) => {
         END AS status
       FROM survey s
       JOIN departments d ON s.dept_id = d.id
-      JOIN term t ON s.term_id = t.id
+      JOIN level t ON s.level_id = t.id
       ORDER BY s.id ASC
     `;
     res.json(result);
@@ -21,17 +21,16 @@ exports.getAllSurveys = async (req, res) => {
   }
 };
 
-
 /**
  * 1) إنشاء Survey جديد
  */
 exports.createSurvey = async (req, res) => {
   try {
-    const { title, dept_id, term_id, start_date, end_date } = req.body;
+    const { title, dept_id, level_id, start_date, end_date } = req.body;
 
     const result = await sql`
-      INSERT INTO survey (title, dept_id, term_id, start_date, end_date)
-      VALUES (${title}, ${dept_id}, ${term_id}, ${start_date}, ${end_date})
+      INSERT INTO survey (title, dept_id, level_id, start_date, end_date)
+      VALUES (${title}, ${dept_id}, ${level_id}, ${start_date}, ${end_date})
       RETURNING *
     `;
 
@@ -50,13 +49,13 @@ exports.getAvailableSurveys = async (req, res) => {
 
     // نحدد القسم والترم للطالب
     const student = await sql`
-      SELECT dept_id, term_id FROM student WHERE id = ${studentId}
+      SELECT dept_id, level_id FROM student WHERE id = ${studentId}
     `;
     if (student.length === 0) {
       return res.status(404).json({ error: "Student not found" });
     }
 
-    const { dept_id, term_id } = student[0];
+    const { dept_id, level_id } = student[0];
 
     // نجيب السيرفايات المفتوحة + حالة الطالب
     const surveys = await sql`
@@ -67,7 +66,7 @@ exports.getAvailableSurveys = async (req, res) => {
         ) AS has_voted
       FROM survey s
       WHERE s.dept_id = ${dept_id}
-        AND s.term_id = ${term_id}
+        AND s.level_id = ${level_id}
         AND s.start_date <= NOW()
         AND s.end_date >= NOW()
       ORDER BY s.start_date DESC
@@ -78,7 +77,6 @@ exports.getAvailableSurveys = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 /**
  * 3) جلب تفاصيل Survey محدد
@@ -97,7 +95,7 @@ exports.getSurveyDetails = async (req, res) => {
     const electives = await sql`
       SELECT c.* 
       FROM courses c
-      JOIN survey s ON s.dept_id = c.dept_id AND s.term_id = c.term_id
+      JOIN survey s ON s.dept_id = c.dept_id AND s.level_id = c.level_id
       WHERE s.id = ${surveyId} AND c.type = 'elective'
     `;
 
@@ -164,6 +162,3 @@ exports.getSurveyResults = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
-

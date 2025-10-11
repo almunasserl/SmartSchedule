@@ -1,14 +1,13 @@
 const sql = require("../config/db");
 const bcrypt = require("bcrypt");
 
-const generateAuthRecord = async ({ email, phone, role }) => {
+const generateAuthRecord = async ({ email, role, password }) => {
   try {
-    const defaultPassword = phone.toString();
-    const hashpassword = await bcrypt.hash(defaultPassword, 10);
+    const hashpassword = await bcrypt.hash(password, 10);
 
     const result = await sql`
-      INSERT INTO auth (email, hashpassword, role, status, phone)
-      VALUES (${email}, ${hashpassword}, ${role}, 'active', ${phone})
+      INSERT INTO auth (email, hashpassword, role)
+      VALUES (${email}, ${hashpassword}, ${role})
       RETURNING id
     `;
 

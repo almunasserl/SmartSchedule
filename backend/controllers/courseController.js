@@ -18,6 +18,24 @@ exports.getCourses = async (req, res) => {
 /**
  * 2) جلب كورس محدد
  */
+exports.getCourseById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const course = await sql`
+      SELECT * FROM courses
+      WHERE id = ${id}
+    `;
+
+    if (course.length === 0) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    res.json(course[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 /**
  * 3) إضافة كورس جديد

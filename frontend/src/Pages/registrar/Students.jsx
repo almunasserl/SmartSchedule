@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Offcanvas, Button, Spinner, Toast, ToastContainer } from "react-bootstrap";
+import {
+  Offcanvas,
+  Button,
+  Spinner,
+  Toast,
+  ToastContainer,
+} from "react-bootstrap";
 import { Pie, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -12,23 +18,29 @@ import {
 } from "chart.js";
 import api from "../../Services/apiClient";
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement
+);
 
 export default function Students() {
   const [students, setStudents] = useState([]);
   const [statusStats, setStatusStats] = useState([]);
   const [deptStats, setDeptStats] = useState([]);
-  const [loading, setLoading] = useState(false); // for update form
-  const [pageLoading, setPageLoading] = useState(true); // for initial page load
-  const [actionId, setActionId] = useState(null); // for per-row loaders
+  const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [actionId, setActionId] = useState(null);
 
-  const [terms, setTerms] = useState([]);
+  const [levels, setLevels] = useState([]);
   const [departments, setDepartments] = useState([]);
 
   const [editStudent, setEditStudent] = useState(null);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
 
-  // Toast messages
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const showToast = (message, type = "info") => {
     setToast({ show: true, message, type });
@@ -69,11 +81,11 @@ export default function Students() {
 
   const fetchDropdowns = async () => {
     try {
-      const [termsRes, deptsRes] = await Promise.all([
+      const [levelsRes, deptsRes] = await Promise.all([
         api.get("/dropdowns/terms"),
         api.get("/dropdowns/departments"),
       ]);
-      setTerms(termsRes.data || []);
+      setLevels(levelsRes.data || []);
       setDepartments(deptsRes.data || []);
     } catch (err) {
       showToast("Failed to load dropdowns", "danger");
@@ -98,7 +110,8 @@ export default function Students() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this student?")) return;
+    if (!window.confirm("Are you sure you want to delete this student?"))
+      return;
     setActionId(id);
     try {
       await api.delete(`/students/${id}`);
@@ -112,7 +125,6 @@ export default function Students() {
     }
   };
 
-  // Pie Chart Data
   const statusData = {
     labels: statusStats.map((s) => s.status),
     datasets: [
@@ -123,7 +135,6 @@ export default function Students() {
     ],
   };
 
-  // Bar Chart Data
   const deptData = {
     labels: deptStats.map((d) => d.department),
     datasets: [
@@ -141,11 +152,17 @@ export default function Students() {
     plugins: { legend: { display: false } },
   };
 
-  // Page-level loader
   if (pageLoading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "80vh" }}>
-        <Spinner animation="border" variant="info" style={{ width: "3rem", height: "3rem" }} />
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "80vh" }}
+      >
+        <Spinner
+          animation="border"
+          variant="info"
+          style={{ width: "3rem", height: "3rem" }}
+        />
       </div>
     );
   }
@@ -154,7 +171,11 @@ export default function Students() {
     <div>
       {/* Toasts */}
       <ToastContainer position="top-end" className="p-3">
-        <Toast bg={toast.type} show={toast.show} onClose={() => setToast({ show: false })}>
+        <Toast
+          bg={toast.type}
+          show={toast.show}
+          onClose={() => setToast({ show: false })}
+        >
           <Toast.Body className="text-white">{toast.message}</Toast.Body>
         </Toast>
       </ToastContainer>
@@ -199,7 +220,7 @@ export default function Students() {
                 <th>Name</th>
                 <th>Status</th>
                 <th>Department</th>
-                <th>Term</th>
+                <th>Level</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -210,7 +231,7 @@ export default function Students() {
                   <td>{s.name}</td>
                   <td>{s.status}</td>
                   <td>{s.department_name}</td>
-                  <td>{s.term_name}</td>
+                  <td>{s.level_name}</td>
                   <td>
                     <Button
                       size="sm"
@@ -222,7 +243,11 @@ export default function Students() {
                       }}
                       disabled={actionId === s.id}
                     >
-                      {actionId === s.id ? <Spinner size="sm" animation="border" /> : "Edit"}
+                      {actionId === s.id ? (
+                        <Spinner size="sm" animation="border" />
+                      ) : (
+                        "Edit"
+                      )}
                     </Button>
                     <Button
                       size="sm"
@@ -230,7 +255,11 @@ export default function Students() {
                       onClick={() => handleDelete(s.id)}
                       disabled={actionId === s.id}
                     >
-                      {actionId === s.id ? <Spinner size="sm" animation="border" /> : "Delete"}
+                      {actionId === s.id ? (
+                        <Spinner size="sm" animation="border" />
+                      ) : (
+                        "Delete"
+                      )}
                     </Button>
                   </td>
                 </tr>
@@ -248,7 +277,11 @@ export default function Students() {
       </div>
 
       {/* Edit Offcanvas */}
-      <Offcanvas show={showOffcanvas} onHide={() => setShowOffcanvas(false)} placement="end">
+      <Offcanvas
+        show={showOffcanvas}
+        onHide={() => setShowOffcanvas(false)}
+        placement="end"
+      >
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>Edit Student</Offcanvas.Title>
         </Offcanvas.Header>
@@ -261,7 +294,9 @@ export default function Students() {
                   type="text"
                   className="form-control"
                   value={editStudent.name}
-                  onChange={(e) => setEditStudent({ ...editStudent, name: e.target.value })}
+                  onChange={(e) =>
+                    setEditStudent({ ...editStudent, name: e.target.value })
+                  }
                 />
               </div>
 
@@ -271,7 +306,9 @@ export default function Students() {
                   type="text"
                   className="form-control"
                   value={editStudent.status}
-                  onChange={(e) => setEditStudent({ ...editStudent, status: e.target.value })}
+                  onChange={(e) =>
+                    setEditStudent({ ...editStudent, status: e.target.value })
+                  }
                 />
               </div>
 
@@ -280,7 +317,9 @@ export default function Students() {
                 <select
                   className="form-select"
                   value={editStudent.dept_id}
-                  onChange={(e) => setEditStudent({ ...editStudent, dept_id: e.target.value })}
+                  onChange={(e) =>
+                    setEditStudent({ ...editStudent, dept_id: e.target.value })
+                  }
                 >
                   <option value="">-- Select Department --</option>
                   {departments.map((d) => (
@@ -292,14 +331,16 @@ export default function Students() {
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Term</label>
+                <label className="form-label">Level</label>
                 <select
                   className="form-select"
-                  value={editStudent.term_id}
-                  onChange={(e) => setEditStudent({ ...editStudent, term_id: e.target.value })}
+                  value={editStudent.level_id}
+                  onChange={(e) =>
+                    setEditStudent({ ...editStudent, level_id: e.target.value })
+                  }
                 >
-                  <option value="">-- Select Term --</option>
-                  {terms.map((t) => (
+                  <option value="">-- Select Level --</option>
+                  {levels.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
@@ -315,7 +356,8 @@ export default function Students() {
               >
                 {loading ? (
                   <>
-                    <Spinner animation="border" size="sm" className="me-2" /> Updating...
+                    <Spinner animation="border" size="sm" className="me-2" />{" "}
+                    Updating...
                   </>
                 ) : (
                   "Update Student"

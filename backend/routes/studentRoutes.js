@@ -30,4 +30,14 @@ router.get("/:studentId/schedule", getStudentSchedule);
 // إحصائيات المواد
 router.get("/:studentId/stats", getStudentStats);
 
+const {
+  getIrregularStudents,
+  createIrregularStudent,
+  updateIrregularStudent,
+} = require("../controllers/studentController");
+
+router.get("/irregular", getIrregularStudents);
+router.post("/irregular", createIrregularStudent);
+router.put("/irregular/:id", updateIrregularStudent);
+
 module.exports = router;

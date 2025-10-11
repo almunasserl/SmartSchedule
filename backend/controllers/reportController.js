@@ -147,7 +147,7 @@ exports.getCourseTypesCount = async (req, res) => {
   try {
     const result = await sql`
       SELECT 
-        COUNT(*) FILTER (WHERE type = 'core') AS core_courses,
+        COUNT(*) FILTER (WHERE type = 'required') AS core_courses,
         COUNT(*) FILTER (WHERE type = 'elective') AS elective_courses
       FROM courses
     `;

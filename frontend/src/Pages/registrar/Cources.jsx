@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Offcanvas, Button, Spinner, Toast, ToastContainer } from "react-bootstrap";
+import {
+  Offcanvas,
+  Button,
+  Spinner,
+  Toast,
+  ToastContainer,
+  Modal,
+  Form,
+} from "react-bootstrap";
 import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -19,10 +27,11 @@ export default function Courses() {
   const [creditsByDept, setCreditsByDept] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [terms, setTerms] = useState([]);
+  const [facultyList, setFacultyList] = useState([]);
 
-  const [loading, setLoading] = useState(false); // for save/update
-  const [pageLoading, setPageLoading] = useState(true); // for full page
-  const [actionId, setActionId] = useState(null); // per-row button loader
+  const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [actionId, setActionId] = useState(null);
 
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
@@ -31,6 +40,11 @@ export default function Courses() {
 
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedFaculty, setSelectedFaculty] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   const [newCourse, setNewCourse] = useState({
     id: null,
@@ -42,7 +56,6 @@ export default function Courses() {
     credit_hours: "",
   });
 
-  // ✅ Toast state
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const showToast = (message, type = "info") => {
     setToast({ show: true, message, type });
@@ -55,7 +68,12 @@ export default function Courses() {
 
   const loadPage = async () => {
     setPageLoading(true);
-    await Promise.all([fetchCourses(), fetchStats(), fetchCredits(), fetchDropdowns()]);
+    await Promise.all([
+      fetchCourses(),
+      fetchStats(),
+      fetchCredits(),
+      fetchDropdowns(),
+    ]);
     setPageLoading(false);
   };
 
@@ -77,7 +95,7 @@ export default function Courses() {
         core: typesRes.data.core_courses,
         elective: typesRes.data.elective_courses,
       });
-    } catch (err) {
+    } catch {
       showToast("Failed to load stats", "danger");
     }
   };
@@ -86,7 +104,7 @@ export default function Courses() {
     try {
       const res = await api.get("/reports/courses/credits");
       setCreditsByDept(res.data || []);
-    } catch (err) {
+    } catch {
       showToast("Failed to load credit hours", "danger");
     }
   };
@@ -99,12 +117,20 @@ export default function Courses() {
       ]);
       setDepartments(deptRes.data || []);
       setTerms(termRes.data || []);
-    } catch (err) {
+    } catch {
       showToast("Failed to load dropdowns", "danger");
     }
   };
 
-  // ✅ Save / Update Course
+  const fetchFaculty = async () => {
+    try {
+      const res = await api.get("/dropdowns/faculty");
+      setFacultyList(res.data || []);
+    } catch {
+      showToast("Failed to load faculty list", "danger");
+    }
+  };
+
   const handleSave = async () => {
     if (!newCourse.code || !newCourse.name || !newCourse.type) {
       showToast("Please fill all required fields", "warning");
@@ -152,6 +178,31 @@ export default function Courses() {
     }
   };
 
+  const handleAssignFaculty = async () => {
+    if (!selectedFaculty) {
+      showToast("Please select a faculty", "warning");
+      return;
+    }
+
+    setAssigning(true);
+    try {
+      await api.post("/faculty-courses", {
+        faculty_id: selectedFaculty,
+        course_id: selectedCourse.id,
+      });
+
+      showToast("✅ Faculty assigned successfully!", "success");
+      setShowAssignModal(false);
+      setSelectedFaculty("");
+      setSelectedCourse(null);
+    } catch (err) {
+      const msg = err.response?.data?.error || "Failed to assign faculty";
+      showToast(msg, "danger");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const resetForm = () => {
     setNewCourse({
       id: null,
@@ -165,20 +216,16 @@ export default function Courses() {
     setIsEditing(false);
   };
 
-  // Filters
   const filteredCourses = courses.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.code.toLowerCase().includes(search.toLowerCase());
-
     const matchesDept = deptFilter ? c.dept_id === parseInt(deptFilter) : true;
     const matchesTerm = termFilter ? c.term_id === parseInt(termFilter) : true;
     const matchesType = typeFilter ? c.type === typeFilter : true;
-
     return matchesSearch && matchesDept && matchesTerm && matchesType;
   });
 
-  // Chart Data
   const barData = {
     labels: creditsByDept.map((d) => d.department),
     datasets: [
@@ -196,20 +243,30 @@ export default function Courses() {
     plugins: { legend: { display: false } },
   };
 
-  // 🌀 Page Loader
   if (pageLoading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "80vh" }}>
-        <Spinner animation="border" variant="info" style={{ width: "3rem", height: "3rem" }} />
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "80vh" }}
+      >
+        <Spinner
+          animation="border"
+          variant="info"
+          style={{ width: "3rem", height: "3rem" }}
+        />
       </div>
     );
   }
 
   return (
     <div>
-      {/* Toasts */}
+      {/* Toast */}
       <ToastContainer position="top-end" className="p-3">
-        <Toast bg={toast.type} show={toast.show} onClose={() => setToast({ show: false })}>
+        <Toast
+          bg={toast.type}
+          show={toast.show}
+          onClose={() => setToast({ show: false })}
+        >
           <Toast.Body className="text-white">{toast.message}</Toast.Body>
         </Toast>
       </ToastContainer>
@@ -259,7 +316,9 @@ export default function Courses() {
         <div className="col-md-4">
           <div className="card shadow-sm h-100">
             <div className="card-body">
-              <h6 className="text-center text-info">Credit Hours by Department</h6>
+              <h6 className="text-center text-info">
+                Credit Hours by Department
+              </h6>
               <div style={{ height: "220px" }}>
                 <Bar data={barData} options={barOptions} />
               </div>
@@ -359,6 +418,19 @@ export default function Courses() {
                     <td>
                       <Button
                         size="sm"
+                        variant="secondary"
+                        className="me-2"
+                        onClick={() => {
+                          setSelectedCourse(c);
+                          fetchFaculty();
+                          setShowAssignModal(true);
+                        }}
+                      >
+                        Assign Faculty
+                      </Button>
+
+                      <Button
+                        size="sm"
                         variant="warning"
                         className="me-2"
                         onClick={() => handleEdit(c)}
@@ -370,6 +442,7 @@ export default function Courses() {
                           "Edit"
                         )}
                       </Button>
+
                       <Button
                         size="sm"
                         variant="danger"
@@ -398,10 +471,74 @@ export default function Courses() {
         </div>
       </div>
 
-      {/* Offcanvas Add/Edit */}
-      <Offcanvas show={showOffcanvas} onHide={() => setShowOffcanvas(false)} placement="end">
+      {/* Assign Faculty Modal */}
+      <Modal
+        show={showAssignModal}
+        onHide={() => setShowAssignModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Assign Faculty</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedCourse && (
+            <>
+              <p>
+                <strong>Course:</strong> {selectedCourse.name} (
+                {selectedCourse.code})
+              </p>
+              <Form.Group className="mb-3">
+                <Form.Label>Select Faculty</Form.Label>
+                <Form.Select
+                  value={selectedFaculty}
+                  onChange={(e) => setSelectedFaculty(e.target.value)}
+                >
+                  <option value="">-- Choose Faculty --</option>
+                  {facultyList.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => setShowAssignModal(false)}
+            disabled={assigning}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="info"
+            onClick={handleAssignFaculty}
+            disabled={assigning}
+          >
+            {assigning ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />{" "}
+                Assigning...
+              </>
+            ) : (
+              "Assign"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Add/Edit Offcanvas */}
+      <Offcanvas
+        show={showOffcanvas}
+        onHide={() => setShowOffcanvas(false)}
+        placement="end"
+      >
         <Offcanvas.Header closeButton>
-          <Offcanvas.Title>{isEditing ? "Edit Course" : "Add Course"}</Offcanvas.Title>
+          <Offcanvas.Title>
+            {isEditing ? "Edit Course" : "Add Course"}
+          </Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           <div className="mb-3">
@@ -410,7 +547,9 @@ export default function Courses() {
               type="text"
               className="form-control"
               value={newCourse.code}
-              onChange={(e) => setNewCourse({ ...newCourse, code: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, code: e.target.value })
+              }
             />
           </div>
           <div className="mb-3">
@@ -419,7 +558,9 @@ export default function Courses() {
               type="text"
               className="form-control"
               value={newCourse.name}
-              onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, name: e.target.value })
+              }
             />
           </div>
           <div className="mb-3">
@@ -427,7 +568,9 @@ export default function Courses() {
             <select
               className="form-select"
               value={newCourse.type}
-              onChange={(e) => setNewCourse({ ...newCourse, type: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, type: e.target.value })
+              }
             >
               <option value="">Select Type</option>
               <option value="core">Core</option>
@@ -439,7 +582,9 @@ export default function Courses() {
             <select
               className="form-select"
               value={newCourse.dept_id}
-              onChange={(e) => setNewCourse({ ...newCourse, dept_id: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, dept_id: e.target.value })
+              }
             >
               <option value="">Select Department</option>
               {departments.map((d) => (
@@ -454,7 +599,9 @@ export default function Courses() {
             <select
               className="form-select"
               value={newCourse.term_id}
-              onChange={(e) => setNewCourse({ ...newCourse, term_id: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, term_id: e.target.value })
+              }
             >
               <option value="">Select Term</option>
               {terms.map((t) => (
@@ -470,7 +617,9 @@ export default function Courses() {
               type="number"
               className="form-control"
               value={newCourse.credit_hours}
-              onChange={(e) => setNewCourse({ ...newCourse, credit_hours: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, credit_hours: e.target.value })
+              }
             />
           </div>
           <Button
@@ -481,7 +630,8 @@ export default function Courses() {
           >
             {loading ? (
               <>
-                <Spinner animation="border" size="sm" className="me-2" /> Saving...
+                <Spinner animation="border" size="sm" className="me-2" />{" "}
+                Saving...
               </>
             ) : isEditing ? (
               "Update"

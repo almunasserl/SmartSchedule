@@ -7,24 +7,22 @@ const sendEmail = require("../middlewares/emailMiddleware");
 
 exports.signUp = async (req, res) => {
   try {
-    const { email, phone, role, name, dept_id, term_id, status } = req.body;
+    const { email, role, name, level_id, dept_id, password } = req.body;
 
-    if (!email || !phone || !role) {
+    if (!email || !role || !password) {
       return res
         .status(400)
-        .json({ error: "Email, phone, and role are required" });
+        .json({ error: "Email, role, and password are required" });
     }
 
     // نستخدم الدالة الوسيطة
-    const authId = await generateAuthRecord({ email, phone, role });
+    const authId = await generateAuthRecord({ email, role, password });
 
     // لو طالب
     if (role === "student") {
       const studentResult = await sql`
-        INSERT INTO student (id,name, dept_id, term_id, status, auth_id)
-        VALUES (${authId},${name}, ${dept_id}, ${term_id}, ${
-        status || "regular"
-      }, ${authId})
+        INSERT INTO student (id,name, level_id, dept_id)
+        VALUES (${authId},${name}, ${level_id}, ${dept_id})
         RETURNING *
       `;
       return res.status(201).json({ user: studentResult[0], role });
@@ -33,8 +31,8 @@ exports.signUp = async (req, res) => {
     // لو أستاذ
     if (role === "faculty") {
       const facultyResult = await sql`
-        INSERT INTO faculty (id,name, dept_id, auth_id)
-        VALUES (${authId},${name}, ${dept_id}, ${authId})
+        INSERT INTO faculty (id,name, dept_id)
+        VALUES (${authId},${name}, ${dept_id})
         RETURNING *
       `;
       return res.status(201).json({ user: facultyResult[0], role });
@@ -161,8 +159,11 @@ exports.resetPassword = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const users =
-      await sql`SELECT id, email, role, status, phone FROM auth ORDER BY id ASC`;
+    const users = await sql`
+      SELECT id, email, role, status
+      FROM auth
+      ORDER BY id ASC
+    `;
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -183,7 +184,7 @@ exports.updateUserStatus = async (req, res) => {
   UPDATE auth 
   SET status = ${status} 
   WHERE id = ${userId}
-  RETURNING id, email, role, status, phone
+  RETURNING id, email, role, status
 `;
 
     if (result.length === 0) {
