@@ -54,7 +54,6 @@ export default function Sections() {
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [search, setSearch] = useState("");
 
-  // ✅ AI modal states
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiSections, setAiSections] = useState([]);
   const [loadingAI, setLoadingAI] = useState(false);
@@ -104,38 +103,25 @@ export default function Sections() {
     }
   };
 
-  const handleSaveSection = async () => {
-    if (
-      !newSection.course_id ||
-      !newSection.instructor_id ||
-      !newSection.room_id
-    ) {
-      showToast("Please fill all required fields", "warning");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if (isEditing) {
-        await api.put(`/sections/${newSection.id}`, newSection);
-        showToast("✅ Section updated successfully!", "success");
-      } else {
-        await api.post("/sections", newSection);
-        showToast("✅ Section created successfully!", "success");
-      }
-      await Promise.all([fetchSections(), fetchEnrollment()]);
-      setShowOffcanvas(false);
-      resetForm();
-    } catch (err) {
-      const msg = err.response?.data?.error || "Failed to save section";
-      showToast(msg, "danger");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ✅ Fixed Edit function to show correct values
   const handleEdit = (section) => {
-    setNewSection(section);
+    const course = courses.find((c) => c.code === section.course_code);
+    const instructor = faculty.find((f) => f.name === section.faculty_name);
+    const room = rooms.find((r) =>
+      r.label.toLowerCase().includes(section.room_name.toLowerCase())
+    );
+
+    setNewSection({
+      id: section.id,
+      course_id: course ? course.id : "",
+      instructor_id: instructor ? instructor.id : "",
+      room_id: room ? room.id : "",
+      capacity: section.capacity,
+      day_of_week: section.day_of_week,
+      start_time: section.start_time,
+      end_time: section.end_time,
+    });
+
     setIsEditing(true);
     setShowOffcanvas(true);
   };
@@ -156,18 +142,18 @@ export default function Sections() {
     }
   };
 
-  const resetForm = () => {
-    setNewSection({
-      id: null,
-      course_id: "",
-      instructor_id: "",
-      room_id: "",
-      capacity: "",
-      day_of_week: "",
-      start_time: "",
-      end_time: "",
-    });
-    setIsEditing(false);
+  const handleGenerateAI = async () => {
+    setLoadingAI(true);
+    setShowAIModal(true);
+    try {
+      const res = await api.get("/ai/smart-sections");
+      setAiSections(res.data);
+      showToast("🤖 Smart sections generated successfully!", "success");
+    } catch {
+      showToast("Failed to generate smart sections", "danger");
+    } finally {
+      setLoadingAI(false);
+    }
   };
 
   const filteredSections = sections.filter(
@@ -198,21 +184,6 @@ export default function Sections() {
     indexAxis: "y",
     responsive: true,
     plugins: { legend: { position: "bottom" } },
-  };
-
-  // ✅ Generate Smart Sections (AI)
-  const handleGenerateAI = async () => {
-    setLoadingAI(true);
-    setShowAIModal(true);
-    try {
-      const res = await api.get("/ai/smart-sections");
-      setAiSections(res.data);
-      showToast("🤖 Smart sections generated successfully!", "success");
-    } catch {
-      showToast("Failed to generate smart sections", "danger");
-    } finally {
-      setLoadingAI(false);
-    }
   };
 
   if (pageLoading) {
@@ -272,7 +243,17 @@ export default function Sections() {
           <Button
             variant="primary"
             onClick={() => {
-              resetForm();
+              setIsEditing(false);
+              setNewSection({
+                id: null,
+                course_id: "",
+                instructor_id: "",
+                room_id: "",
+                capacity: "",
+                day_of_week: "",
+                start_time: "",
+                end_time: "",
+              });
               setShowOffcanvas(true);
             }}
           >
@@ -316,7 +297,7 @@ export default function Sections() {
             <thead className="table-light">
               <tr>
                 <th>ID</th>
-                <th>Course Code</th> {/* ✅ changed here */}
+                <th>Course Code</th>
                 <th>Instructor</th>
                 <th>Room</th>
                 <th>Capacity</th>
@@ -331,7 +312,7 @@ export default function Sections() {
               {filteredSections.map((s) => (
                 <tr key={s.id}>
                   <td>{s.id}</td>
-                  <td>{s.course_code}</td> {/* ✅ replaced name with code */}
+                  <td>{s.course_code}</td>
                   <td>{s.faculty_name}</td>
                   <td>{s.room_name}</td>
                   <td>{s.capacity}</td>
@@ -347,13 +328,8 @@ export default function Sections() {
                       size="sm"
                       className="me-2"
                       onClick={() => handleEdit(s)}
-                      disabled={actionId === s.id}
                     >
-                      {actionId === s.id && isEditing ? (
-                        <Spinner size="sm" animation="border" />
-                      ) : (
-                        "Edit"
-                      )}
+                      Edit
                     </Button>
                     <Button
                       variant="danger"
@@ -370,28 +346,135 @@ export default function Sections() {
                   </td>
                 </tr>
               ))}
-              {filteredSections.length === 0 && (
-                <tr>
-                  <td colSpan="10" className="text-center text-muted">
-                    No sections found
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Offcanvas Form (unchanged) */}
+      {/* Offcanvas Form */}
       <Offcanvas
         show={showOffcanvas}
         onHide={() => setShowOffcanvas(false)}
         placement="end"
       >
-        {/* same form code here */}
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title>
+            {isEditing ? "Edit Section" : "Add Section"}
+          </Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          <div className="mb-3">
+            <label className="form-label">Course</label>
+            <select
+              className="form-select"
+              value={newSection.course_id}
+              onChange={(e) =>
+                setNewSection({ ...newSection, course_id: e.target.value })
+              }
+            >
+              <option value="">-- Select Course --</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Instructor</label>
+            <select
+              className="form-select"
+              value={newSection.instructor_id}
+              onChange={(e) =>
+                setNewSection({ ...newSection, instructor_id: e.target.value })
+              }
+            >
+              <option value="">-- Select Instructor --</option>
+              {faculty.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Room</label>
+            <select
+              className="form-select"
+              value={newSection.room_id}
+              onChange={(e) =>
+                setNewSection({ ...newSection, room_id: e.target.value })
+              }
+            >
+              <option value="">-- Select Room --</option>
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Day</label>
+            <select
+              className="form-select"
+              value={newSection.day_of_week}
+              onChange={(e) =>
+                setNewSection({ ...newSection, day_of_week: e.target.value })
+              }
+            >
+              <option value="">-- Select Day --</option>
+              {days.map((d, i) => (
+                <option key={i} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <label className="form-label">Capacity</label>
+              <input
+                type="number"
+                className="form-control"
+                value={newSection.capacity}
+                onChange={(e) =>
+                  setNewSection({ ...newSection, capacity: e.target.value })
+                }
+              />
+            </div>
+            <div className="col-md-6 mb-3">
+              <label className="form-label">Start Time</label>
+              <input
+                type="time"
+                className="form-control"
+                value={newSection.start_time}
+                onChange={(e) =>
+                  setNewSection({ ...newSection, start_time: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">End Time</label>
+            <input
+              type="time"
+              className="form-control"
+              value={newSection.end_time}
+              onChange={(e) =>
+                setNewSection({ ...newSection, end_time: e.target.value })
+              }
+            />
+          </div>
+        </Offcanvas.Body>
       </Offcanvas>
 
-      {/* ✅ AI Modal */}
+      {/* AI Modal */}
       <Modal
         show={showAIModal}
         onHide={() => setShowAIModal(false)}
