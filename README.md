@@ -51,8 +51,6 @@ OPENAI_API_KEY=your_openai_api_key_here
 VITE_API_BASE_URL=http://localhost:5000
 ```
 
-*Note: The OpenAI API key is optional and required only for AI-related routes. The system will run normally without it.*
-
 ---
 
 ## 👤 Demo Credentials
