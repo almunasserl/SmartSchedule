@@ -76,12 +76,6 @@ app.use("/api/dropdowns", dropdownsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/schedules", scheduleRoutes);
 
-// ✅ Run locally or export for Render/Vercel
-if (process.env.NODE_ENV !== "production") {
-  server.listen(PORT, () => {
-    console.log(`🚀 SmartSchedule server running locally on port ${PORT}`);
-  });
-} else {
-  // Serverless environment export
-  module.exports = app;
-}
+server.listen(PORT, () => {
+  console.log(`🚀 SmartSchedule backend running on port ${PORT}`);
+});
