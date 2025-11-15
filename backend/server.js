@@ -34,7 +34,12 @@ startYjsServer(server);
 // ✅ Secure & flexible CORS setup
 const allowedOrigins = [
   "http://localhost:5173", // for local development
-  "https://smartschedulefrontend.onrender.com", // ✅ your deployed frontend domain
+  "https://smartschedulefrontend.onrender.com", // ✅  deployed frontend domain
+  //  Vercel production domain
+  "https://smart-schedule-ten.vercel.app",
+
+  //  Vercel preview domain for the main branch
+  "https://smart-schedule-git-main-almunasserls-projects.vercel.app"
 ];
 
 app.use(
