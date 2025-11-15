@@ -1,50 +1,55 @@
 const sql = require("../config/db");
 const openai = require("../config/openai");
 
+// ===================== Smart Sections via OpenAI =====================
 exports.generateSmartSections = async (req, res) => {
   try {
-    // 🔹 اجمع كل البيانات اللازمة من قاعدة البيانات
+    const { level_id, group_id } = req.body;
+
+    if (!level_id) {
+      return res.status(400).json({ error: "Missing required field: level_id" });
+    }
+
+    // 🔹 Gather data from actual tables
     const [
       courses,
       facultyCourses,
-      facultyAvailability,
       prevSections,
-      rules,
       faculty,
       rooms,
     ] = await Promise.all([
-      sql`SELECT id, code, name, level_id, dept_id, credit_hours FROM courses`,
-      sql`SELECT course_id, faculty_id FROM faculty_courses`,
-      sql`SELECT faculty_id, day, start_time, end_time FROM faculty_availability`,
-      sql`SELECT id, course_id, instructor_id, room_id, day_of_week, start_time, end_time FROM sections`,
-      sql`SELECT * FROM rules LIMIT 1`,
+      // Filter courses by selected level
+      sql`
+        SELECT id, course_code, course_name, credit_hours, type, level_id, capacity
+        FROM course
+        WHERE level_id = ${level_id}
+      `,
+      sql`SELECT course_id, faculty_id FROM course_facultys`,
+      sql`SELECT id, course_id, faculty_id, room_id, day_of_week, start_time, end_time FROM sections`,
       sql`SELECT id, name FROM faculty`,
-      sql`SELECT id, name FROM room`,
+      sql`SELECT id, name, capacity FROM room`,
     ]);
 
-    const r = rules[0];
-    const hasAvailability = facultyAvailability.length > 0;
+    // 🧭 Fixed system rules
+    const WORK_START = "08:00";
+    const WORK_END = "15:00";
+    const BREAK_START = "12:00";
+    const BREAK_END = "13:00";
+    const WORKING_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
 
-    // 🔸 بناء النص الكامل المرسل إلى الذكاء الاصطناعي
+    // 🔸 Build the context prompt for GPT
     const context = `
 You are an advanced university scheduling assistant.
-
-${
-  !hasAvailability
-    ? "⚠️ NOTE: No faculty availability data is provided. You may suggest times logically within working hours (8:00–16:00) while ensuring no overlaps."
-    : ""
-}
-
-Your goal is to generate new course sections (classes) for the next semester
-while respecting all academic rules, instructor availability, and existing schedule constraints.
+Your task is to generate valid new course sections for the next semester
+based on real university constraints.
 
 ---
 
-📘 COURSES:
+📘 COURSES (Filtered by Level ${level_id}):
 ${courses
   .map(
     (c) =>
-      `${c.id}: ${c.code} - ${c.name} (Level ${c.level_id}, Dept ${c.dept_id}, Credit hours ${c.credit_hours})`
+      `${c.id}: ${c.course_code} - ${c.course_name} (Credit Hours ${c.credit_hours}, Type ${c.type || "Lecture"}, Capacity ${c.capacity})`
   )
   .join("\n")}
 
@@ -52,7 +57,7 @@ ${courses
 ${faculty.map((f) => `${f.id}: ${f.name}`).join("\n")}
 
 🏫 ROOMS:
-${rooms.map((r) => `${r.id}: ${r.name}`).join("\n")}
+${rooms.map((r) => `${r.id}: ${r.name} (Capacity ${r.capacity})`).join("\n")}
 
 📚 FACULTY COURSES (who can teach what):
 ${facultyCourses
@@ -61,77 +66,67 @@ ${facultyCourses
   )
   .join("\n")}
 
-📅 FACULTY AVAILABILITY:
-${facultyAvailability
-  .map(
-    (fa) =>
-      `Faculty ${fa.faculty_id}: available on ${fa.day} from ${fa.start_time} to ${fa.end_time}`
-  )
-  .join("\n")}
-
-⚠️ EXISTING SECTIONS (avoid conflicts with these):
+⚠️ EXISTING SECTIONS (avoid conflicts):
 ${prevSections
   .map(
     (s) =>
-      `Course ${s.course_id} taught by Faculty ${s.instructor_id} in Room ${s.room_id} on ${s.day_of_week} from ${s.start_time} to ${s.end_time}`
+      `Course ${s.course_id} taught by Faculty ${s.faculty_id} in Room ${s.room_id} on ${s.day_of_week} from ${s.start_time} to ${s.end_time}`
   )
   .join("\n")}
 
 🧩 RULES:
-- Working hours: ${r.work_start} to ${r.work_end}
-- Working days: ${r.working_days.join(", ")}
-- Break time: ${r.break_start} to ${r.break_end}
-- Max lecture duration: ${r.lecture_duration} minutes
-- Minimum students to open section: ${r.min_students_to_open_section}
+- Working hours: ${WORK_START} to ${WORK_END}
+- Working days: ${WORKING_DAYS.join(", ")}
+- Break time: ${BREAK_START} to ${BREAK_END}
+- Max lecture duration: 60 minutes
+- Minimum students to open a section: 10
+- Avoid overlapping schedules for faculty or rooms
+- Avoid scheduling during the break hour
 
 ---
 
 🎯 TASK:
-Generate a JSON array of 5–10 NEW SECTIONS following these rules:
-Each object should contain:
-- course_id
-- course_code
-- instructor_id
-- faculty_name
-- room_id
-- room_name
-- day_of_week
-- start_time
-- end_time
-- capacity
-- status = "draft"
+Generate a JSON array of 5–10 NEW SECTIONS following these rules.
+Each object must match the database schema for the "sections" table:
 
-Important:
-- Avoid time conflicts with existing sections.
-- Respect each faculty’s availability.
-- Spread sections across available days.
-- Avoid assigning the same instructor twice at overlapping times.
-- Keep your response in pure JSON format only.
+{
+  "course_id": number,
+  "faculty_id": number,
+  "room_id": number,
+  "section_code": string,
+  "start_time": "HH:MM",
+  "end_time": "HH:MM",
+  "day_of_week": string,
+  "type": string,
+  "schedule_id": null,
+  "section_group": ${group_id || "null"}
+}
+
+⚠️ Notes:
+- Times must be between ${WORK_START}–${WORK_END}, excluding ${BREAK_START}–${BREAK_END}.
+- Spread sections evenly across working days.
+- Respond ONLY with pure JSON (no Markdown or comments).
 `;
 
-    // 🔹 طلب من GPT يولّد السكاشن
+    // 🔹 Request from OpenAI
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "You are a university scheduling assistant. Respond ONLY with valid JSON.",
+            "You are a university scheduling assistant. Respond ONLY with valid JSON (no markdown, no explanations).",
         },
         { role: "user", content: context },
       ],
-      temperature: 0.7,
+      temperature: 0.6,
     });
 
     const raw = response.choices[0].message.content;
 
     let sections = [];
     try {
-      // 🧹 تنظيف النص من أي Markdown قبل التحليل
-      const cleaned = raw
-        .replace(/```json/i, "")
-        .replace(/```/g, "")
-        .trim();
+      const cleaned = raw.replace(/```json/i, "").replace(/```/g, "").trim();
       sections = JSON.parse(cleaned);
     } catch (err) {
       console.error("❌ JSON parse failed:", err);
@@ -141,11 +136,11 @@ Important:
       });
     }
 
-    // ✅ إرسال الرد بصيغة JSON منسّقة وواضحة
+    // ✅ Return generated sections
     res.setHeader("Content-Type", "application/json");
     res.send(JSON.stringify(sections, null, 2));
   } catch (err) {
-    console.error(err);
+    console.error("❌ Smart Section Error:", err);
     res.status(500).json({ error: err.message });
   }
 };

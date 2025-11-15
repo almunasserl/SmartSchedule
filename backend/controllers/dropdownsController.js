@@ -1,87 +1,45 @@
 const sql = require("../config/db");
 
 /**
- * 1) جلب الأقسام (id + name)
- */
-exports.getDepartments = async (req, res) => {
-  try {
-    const result =
-      await sql`SELECT id, name FROM departments ORDER BY name ASC`;
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/**
- * 2) جلب الترام (id + name)
- */
-exports.getTerms = async (req, res) => {
-  try {
-    const result = await sql`SELECT id, name FROM level ORDER BY id ASC`;
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/**
- * 3) جلب أيام الدوام من جدول rules (working_days)
- * نفترض عندك جدول اسمه rules أو system_rules فيه الأعمدة work_start, work_end, working_days
- */
-exports.getWorkingDays = async (req, res) => {
-  try {
-    const result = await sql`SELECT working_days FROM rules LIMIT 1`;
-
-    if (result.length === 0) {
-      return res.status(404).json({ error: "No working days found" });
-    }
-
-    // نرجع الأيام كمصفوفة JSON
-    res.json(result[0].working_days);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/**
- * 4) جلب أسماء الجداول مع الـ id
- */
-
-/**
- * جلب الكورسات (id + name)
+ * 🧾 جلب المواد (id + course_code)
  */
 exports.getCoursesList = async (req, res) => {
   try {
     const result = await sql`
-      SELECT id, code
-      FROM courses
-      ORDER BY code ASC
+      SELECT 
+        id, 
+        course_code AS label
+      FROM course
+      ORDER BY course_code ASC
     `;
     res.json(result);
   } catch (err) {
+    console.error("❌ Error fetching courses list:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
 /**
- * جلب الأساتذة (id + name)
+ * 🧑‍🏫 جلب الأساتذة (id + name)
  */
 exports.getFacultyList = async (req, res) => {
   try {
     const result = await sql`
-      SELECT id, name 
+      SELECT 
+        id, 
+        name AS label
       FROM faculty
       ORDER BY name ASC
     `;
     res.json(result);
   } catch (err) {
+    console.error("❌ Error fetching faculty list:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
 /**
- * جلب القاعات (id + "name (building - capacity)")
+ * 🏫 جلب القاعات (id + name (building - capacity))
  */
 exports.getRoomsList = async (req, res) => {
   try {
@@ -94,6 +52,45 @@ exports.getRoomsList = async (req, res) => {
     `;
     res.json(result);
   } catch (err) {
+    console.error("❌ Error fetching rooms list:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * 🎓 جلب المستويات (id + name)
+ */
+exports.getLevelsList = async (req, res) => {
+  try {
+    const result = await sql`
+      SELECT 
+        id, 
+        name AS name
+      FROM level
+      ORDER BY id ASC
+    `;
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Error fetching levels list:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * 🧭 جلب الطلاب (id + name)
+ */
+exports.getStudentsList = async (req, res) => {
+  try {
+    const result = await sql`
+      SELECT 
+        id, 
+        name AS label
+      FROM student
+      ORDER BY name ASC
+    `;
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Error fetching students list:", err);
     res.status(500).json({ error: err.message });
   }
 };

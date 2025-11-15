@@ -1,30 +1,32 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   getAllNotifications,
   getNotificationsByRole,
   getNotificationsByUser,
   addNotification,
-  markAsPublish,
-  deleteNotification
+  updateStatus, // ✅ unified publish/unpublish endpoint
+  deleteNotification,
 } = require("../controllers/notificationController");
 
-// كل الإشعارات
+/**
+ * 🧾 Notification Routes
+ */
+
+// 1️⃣ Get all notifications
 router.get("/", getAllNotifications);
 
-// إشعارات حسب الـ role
-router.get("/role/:role", getNotificationsByRole);
+// 3️⃣ Get notifications for a user (includes role + all)
+router.get("/user/:userId/:role", getNotificationsByUser);
 
-// إشعارات مستخدم
-router.get("/user/:userId", getNotificationsByUser);
-
-// إضافة إشعار
+// 4️⃣ Add new notification (default = draft)
 router.post("/", addNotification);
 
-// تحديث حالة (مقروء)
-router.patch("/:id/publish", markAsPublish);
+// 5️⃣ Update notification status (publish/unpublish)
+router.patch("/:id/status", updateStatus);
 
-// حذف إشعار
+// 6️⃣ Delete notification
 router.delete("/:id", deleteNotification);
 
 module.exports = router;

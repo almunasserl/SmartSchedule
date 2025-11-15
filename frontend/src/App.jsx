@@ -19,32 +19,43 @@ import SignUp from "./Pages/auth/SignUp";
 
 // Pages (Faculty)
 import FacultyDashboard from "./Pages/faculty/FacultyDashboard";
-import FacultyCalendar from "./Pages/faculty/FacultyCalender";
+
 import FacultyCourses from "./Pages/faculty/FacultyCourses";
 import FacultySections from "./Pages/faculty/FacultySections";
 import FacultyFeedback from "./Pages/faculty/FacultyFeedback";
-import FacultyAvailability from "./Pages/faculty/FacultyAvailability";
 
 // Pages (Student)
 import StudentDashboard from "./Pages/student/StudentDashboard";
-import StudentCourses from "./Pages/student/StudentCourses";
-import StudentSections from "./Pages/student/StudentSections";
+import AllLevelsSchedules from "./Pages/student/AllLevelsSchedules";
+
 import StudentSurveys from "./Pages/student/StudentSurveys";
 import StudentSurveyDetails from "./Pages/student/StudentSurveyDetails";
 import StudentFeedback from "./Pages/student/StudentFeedback";
 
 // Pages (Registrar)
 import RegistrarDashboard from "./Pages/registrar/RegistrarDashboard";
-import Schedules from "./Pages/registrar/Schedules";
+import CourseCapacity from "./Pages/registrar/CourseCapacity";
 
-import Sections from "./Pages/registrar/Sections";
-import Students from "./Pages/registrar/Students";
-import Courses from "./Pages/registrar/Cources";
-import Surveys from "./Pages/registrar/Surveys";
-import Feedback from "./Pages/registrar/Feedback";
-import Notifications from "./Pages/registrar/Notifications";
-import Rules from "./Pages/registrar/Rules";
-import IrregularStudents from "./Pages/registrar/IrregularStudents";
+// Pages (schedule_committee)
+import ScheduleCommitteeDashboard from "./Pages/schedule_committee/ScheduleCommitteeDashboard";
+
+
+import Schedules from "./Pages/schedule_committee/Schedules";
+import ScheduleDetails from "./Pages/schedule_committee/ScheduleDetails";
+
+import Surveys from "./Pages/schedule_committee/Surveys";
+import Feedback from "./Pages/schedule_committee/Feedback";
+import Notifications from "./Pages/schedule_committee/Notifications";
+import Rules from "./Pages/schedule_committee/Rules";
+
+
+//load committee
+import LoadCommitteeDashboard from "./Pages/loadcommitte/LoadCommitteeDashboard";
+import LoadCommitteeCourses from "./Pages/loadcommitte/LoadCommitteeCourses";
+import LoadCommitteeFeedback from "./Pages/loadcommitte/LoadCommitteeFeedback";
+import LoadCommitteeLayout from "./Components/layouts/LoadCommitteLayout";
+import ScheduleCommitteeLayout from "./Components/layouts/ScheduleCommitteeLayout";
+import LoadScheduleDetails from "./Pages/loadcommitte/LoadScheduleDetails";
 
 function App() {
   return (
@@ -62,38 +73,50 @@ function App() {
         {/* Faculty Routes */}
         <Route path="/faculty" element={<FacultyLayout />}>
           <Route index element={<FacultyDashboard />} /> {/* /faculty */}
-          <Route path="calendar" element={<FacultyCalendar />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="sections" element={<FacultySections />} />
           <Route path="feedback" element={<FacultyFeedback />} />
-          <Route path="availability" element={<FacultyAvailability />} />
         </Route>
 
         {/* Student Routes */}
         <Route path="/student" element={<StudentLayout />}>
           <Route index element={<StudentDashboard />} /> {/* /students */}
-          <Route path="courses" element={<StudentCourses />} />
-          <Route
-            path="courses/:courseId/sections"
-            element={<StudentSections />}
-          />
+          <Route path="all_levels" element={<AllLevelsSchedules />} />
           <Route path="surveys" element={<StudentSurveys />} />
-          <Route path="surveys/:surveyId" element={<StudentSurveyDetails />} />
+          <Route
+            path="surveys/:surveyId"
+            element={<StudentSurveyDetails key={window.location.pathname} />}
+          />
           <Route path="feedback" element={<StudentFeedback />} />
         </Route>
 
         {/* Registrar Routes */}
         <Route path="/registrar" element={<RegistrarLayout />}>
           <Route index element={<RegistrarDashboard />} /> {/* /registrar */}
+          <Route path="course-capacity" element={<CourseCapacity />} />
+        </Route>
+
+        <Route path="/load_committee" element={<LoadCommitteeLayout />}>
+          <Route index element={<LoadCommitteeDashboard />} />
+          <Route path="faculty_schedules" element={<LoadCommitteeCourses />} />
+          <Route path="feedback" element={<LoadCommitteeFeedback />} />
+          <Route
+            path="schedules/:schedule_id"
+            element={<LoadScheduleDetails />}
+          />
+        </Route>
+
+        {/* schedule_committee Routes */}
+        <Route path="/schedule_committee" element={<ScheduleCommitteeLayout />}>
+          <Route index element={<ScheduleCommitteeDashboard />} />
           <Route path="schedules" element={<Schedules />} />
-          <Route path="sections" element={<Sections />} />
-          <Route path="students" element={<Students />} />
-          <Route path="courses" element={<Courses />} />
+          <Route path="schedules/:schedule_id" element={<ScheduleDetails />} />
+         
           <Route path="surveys" element={<Surveys />} />
           <Route path="feedback" element={<Feedback />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="rules" element={<Rules />} />
-          <Route path="irregular-students" element={<IrregularStudents />} />
+        
         </Route>
       </Routes>
     </Router>

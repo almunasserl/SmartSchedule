@@ -6,6 +6,7 @@ import { useAuth } from "../../Hooks/AuthContext";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,21 +20,30 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await apiClient.post("/auth/login", { email, password });
+      // ✅ كل المستخدمين يجب أن يرسلوا الإيميل + الباسورد + كود OTP
+      const payload = { email, password, otp };
+
+      const res = await apiClient.post("/auth/login", payload);
+
       if (res.data.token) {
         login(res.data.token);
         setSuccess("✅ Login successful! Redirecting...");
+
         setTimeout(() => {
           const decoded = JSON.parse(atob(res.data.token.split(".")[1]));
           if (decoded.role === "faculty") navigate("/faculty");
           else if (decoded.role === "registrar") navigate("/registrar");
-          else if (decoded.role === "committee") navigate("/registrar");
-  
+          else if (decoded.role === "schedule_committee")
+            navigate("/schedule_committee");
           else if (decoded.role === "student") navigate("/student");
+          else if (decoded.role === "load_committee")
+            navigate("/load_committee");
         }, 1500);
       }
     } catch (err) {
-      setError(err.response?.data?.error || "❌ Invalid email or password");
+      setError(
+        err.response?.data?.error || "❌ Invalid credentials or OTP code"
+      );
     } finally {
       setLoading(false);
     }
@@ -51,6 +61,7 @@ export default function Login() {
         {error && <div className="alert alert-danger">{error}</div>}
 
         <form onSubmit={handleSubmit}>
+          {/* Email */}
           <div className="mb-3">
             <label className="form-label fw-bold">Email</label>
             <input
@@ -63,6 +74,7 @@ export default function Login() {
             />
           </div>
 
+          {/* Password */}
           <div className="mb-2">
             <label className="form-label fw-bold">Password</label>
             <input
@@ -75,7 +87,21 @@ export default function Login() {
             />
           </div>
 
-          {/* ✅ Forgot Password link restored */}
+          {/* ✅ OTP field always visible */}
+          <div className="mb-3">
+            <label className="form-label fw-bold">
+              OTP (Google Authenticator)
+            </label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Enter your 6-digit code"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              required
+            />
+          </div>
+
           <div className="text-end mb-3">
             <Link
               to="/forgot-password"
@@ -95,6 +121,7 @@ export default function Login() {
             )}
             {loading ? "Logging in..." : "Login"}
           </button>
+
           <div className="text-center mt-3">
             <span className="small">
               Don’t have an account?{" "}

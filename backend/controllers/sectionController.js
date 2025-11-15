@@ -1,208 +1,255 @@
 const sql = require("../config/db");
 
-/** 🧩 تحويل الوقت إلى دقائق */
+// Convert "HH:mm:ss" → minutes
 function toMinutes(timeStr) {
   const [h, m, s] = timeStr.split(":").map(Number);
   return h * 60 + m + (s ? s / 60 : 0);
 }
 
-/** 🧱 إنشاء سكشن جديد */
+/**
+ * 🧩 Create new section with full validation
+ */
 exports.createSection = async (req, res) => {
   try {
     const {
       course_id,
-      instructor_id,
       room_id,
-      capacity,
+      faculty_id,
       day_of_week,
       start_time,
       end_time,
+      schedule_id,
+      type,
+      section_code,
+      section_group,
     } = req.body;
 
-    const rules = await sql`SELECT * FROM rules LIMIT 1`;
-    if (rules.length === 0)
-      return res.status(400).json({ error: "Rules not defined" });
-
-    const {
-      work_start,
-      work_end,
-      break_start,
-      break_end,
-      lecture_duration,
-      min_students_to_open,
-    } = rules[0];
-
-    // تحقق من وقت الدوام
-    const startMin = toMinutes(start_time);
-    const endMin = toMinutes(end_time);
-    if (startMin < toMinutes(work_start) || endMin > toMinutes(work_end)) {
-      return res.status(400).json({ error: "Section outside working hours" });
+    // 🧠 Validate required fields
+    if (!course_id || !day_of_week || !start_time || !end_time) {
+      return res.status(400).json({
+        error:
+          "Required fields missing: course_id, day_of_week, start_time, end_time.",
+      });
     }
 
-    // تحقق من وقت البريك
-    const overlapBreak = await sql`
-      SELECT (
-        tsrange(
-          TIMESTAMP '2000-01-01' + ${start_time}::time,
-          TIMESTAMP '2000-01-01' + ${end_time}::time
-        ) &&
-        tsrange(
-          TIMESTAMP '2000-01-01' + ${break_start}::time,
-          TIMESTAMP '2000-01-01' + ${break_end}::time
-        )
-      ) AS overlap
-    `;
-    if (overlapBreak[0].overlap)
+    // Convert times to minutes for validation
+    const start = toMinutes(start_time);
+    const end = toMinutes(end_time);
+
+    // 1️⃣ Check working hours (8 AM - 3 PM)
+    const WORK_START = 8 * 60;
+    const WORK_END = 15 * 60;
+    if (start < WORK_START || end > WORK_END) {
       return res
         .status(400)
-        .json({ error: "Section overlaps with break time" });
+        .json({ error: "❌ Section must be between 8:00 AM and 3:00 PM." });
+    }
 
-    // تحقق من مدة المحاضرة
-    const duration = await sql`
-      SELECT EXTRACT(EPOCH FROM (${end_time}::time - ${start_time}::time))/3600 AS hours
-    `;
-    if (duration[0].hours > lecture_duration)
-      return res.status(400).json({ error: "Section exceeds max duration" });
-
-    // تحقق من سعة القاعة
-    const room = await sql`SELECT * FROM room WHERE id = ${room_id}`;
-    if (room.length === 0)
-      return res.status(404).json({ error: "Room not found" });
-    if (capacity > room[0].capacity)
+    // 2️⃣ No classes on Friday or Saturday
+    const invalidDays = ["Friday", "Saturday"];
+    if (invalidDays.includes(day_of_week)) {
       return res
         .status(400)
-        .json({ error: "Section capacity exceeds room capacity" });
+        .json({ error: `❌ No classes allowed on ${day_of_week}.` });
+    }
 
-    // تحقق من توفر المدرس
-    const available = await sql`
-      SELECT * FROM faculty_availability
-      WHERE faculty_id = ${instructor_id}
-        AND day = ${day_of_week}
-        AND ${start_time}::time >= start_time
-        AND ${end_time}::time <= end_time
-    `;
-    if (available.length === 0)
-      return res.status(400).json({ error: "Instructor not available" });
-
-    // تحقق من التعارض مع أستاذ أو قاعة
-    const conflictInstructor = await sql`
-      SELECT * FROM sections
-      WHERE instructor_id = ${instructor_id}
-        AND day_of_week = ${day_of_week}
-        AND tsrange(
-          TIMESTAMP '2000-01-01' + start_time,
-          TIMESTAMP '2000-01-01' + end_time
-        ) &&
-        tsrange(
-          TIMESTAMP '2000-01-01' + ${start_time}::time,
-          TIMESTAMP '2000-01-01' + ${end_time}::time
-        )
-    `;
-    if (conflictInstructor.length > 0)
-      return res.status(400).json({ error: "Instructor has conflict" });
-
-    const conflictRoom = await sql`
-      SELECT * FROM sections
-      WHERE room_id = ${room_id}
-        AND day_of_week = ${day_of_week}
-        AND tsrange(
-          TIMESTAMP '2000-01-01' + start_time,
-          TIMESTAMP '2000-01-01' + end_time
-        ) &&
-        tsrange(
-          TIMESTAMP '2000-01-01' + ${start_time}::time,
-          TIMESTAMP '2000-01-01' + ${end_time}::time
-        )
-    `;
-    if (conflictRoom.length > 0)
-      return res.status(400).json({ error: "Room already booked" });
-
-    // تحقق من امتلاء السكشن الأخير
-    const existing = await sql`
-      SELECT id, capacity,
-             (SELECT COUNT(*) FROM student_sections WHERE section_id = sections.id) AS enrolled
-      FROM sections WHERE course_id = ${course_id}
-    `;
-    if (existing.length > 0) {
-      const last = existing[existing.length - 1];
-      const fillRate = last.enrolled / last.capacity;
-      if (fillRate < 0.5 && last.enrolled < min_students_to_open) {
+    // 3️⃣ Group time conflict
+    if (section_group) {
+      const conflictGroup = await sql`
+        SELECT id FROM sections
+        WHERE section_group = ${section_group}
+          AND day_of_week = ${day_of_week}
+          AND tsrange(
+            TIMESTAMP '2000-01-01' + start_time,
+            TIMESTAMP '2000-01-01' + end_time
+          ) &&
+          tsrange(
+            TIMESTAMP '2000-01-01' + ${start_time}::time,
+            TIMESTAMP '2000-01-01' + ${end_time}::time
+          )
+      `;
+      if (conflictGroup.length > 0)
         return res.status(400).json({
-          error: "Previous section not sufficiently filled",
+          error: "❌ This group already has a section at this time.",
         });
-      }
     }
 
-    // إدخال سكشن جديد بدون schedule_id
+    // 4️⃣ Faculty time conflict
+    if (faculty_id) {
+      const conflictFaculty = await sql`
+        SELECT id FROM sections
+        WHERE faculty_id = ${faculty_id}
+          AND day_of_week = ${day_of_week}
+          AND tsrange(
+            TIMESTAMP '2000-01-01' + start_time,
+            TIMESTAMP '2000-01-01' + end_time
+          ) &&
+          tsrange(
+            TIMESTAMP '2000-01-01' + ${start_time}::time,
+            TIMESTAMP '2000-01-01' + ${end_time}::time
+          )
+      `;
+      if (conflictFaculty.length > 0)
+        return res.status(400).json({
+          error: "❌ This faculty already has a section at this time.",
+        });
+    }
+
+    // 5️⃣ Break time 12–1 PM
+    const BREAK_START = 12 * 60;
+    const BREAK_END = 13 * 60;
+    if (!(end <= BREAK_START || start >= BREAK_END)) {
+      return res.status(400).json({
+        error: "❌ Section overlaps with break time (12:00 PM - 1:00 PM).",
+      });
+    }
+
+    // 6️⃣ Overlap with any section same day/time
+    const overlapCheck = await sql`
+      SELECT id FROM sections
+      WHERE day_of_week = ${day_of_week}
+        AND tsrange(
+          TIMESTAMP '2000-01-01' + start_time,
+          TIMESTAMP '2000-01-01' + end_time
+        ) &&
+        tsrange(
+          TIMESTAMP '2000-01-01' + ${start_time}::time,
+          TIMESTAMP '2000-01-01' + ${end_time}::time
+        )
+    `;
+    if (overlapCheck.length > 0) {
+      return res.status(400).json({
+        error: "❌ Time conflict: another section exists during this time.",
+      });
+    }
+
+    // 7️⃣ Insert
     const result = await sql`
-      INSERT INTO sections (course_id, instructor_id, room_id, capacity, day_of_week, start_time, end_time)
-      VALUES (${course_id}, ${instructor_id}, ${room_id}, ${capacity}, ${day_of_week}, ${start_time}, ${end_time})
+      INSERT INTO sections (
+        course_id, room_id, faculty_id,
+        day_of_week, start_time, end_time,
+        schedule_id, type,section_code, section_group
+      )
+      VALUES (
+        ${course_id},
+        ${room_id || null},
+        ${faculty_id || null},
+        ${day_of_week},
+        ${start_time},
+        ${end_time},
+        ${schedule_id || null},
+        ${type || null},
+     ${section_code || null},
+        ${section_group || null}
+      )
       RETURNING *
     `;
 
-    res.status(201).json(result[0]);
+    res.status(201).json({
+      message: "✅ Section created successfully",
+      section: result[0],
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Error creating section:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
-/** ✏️ تحديث سكشن */
+/** ✏️ Update Section */
 exports.updateSection = async (req, res) => {
   try {
     const { sectionId } = req.params;
     const {
       course_id,
-      instructor_id,
+      faculty_id,
       room_id,
-      capacity,
       day_of_week,
       start_time,
       end_time,
+      schedule_id,
+      section_code,
+      type,
+      section_group,
     } = req.body;
 
-    const room = await sql`SELECT * FROM room WHERE id = ${room_id}`;
-    if (room.length === 0)
-      return res.status(404).json({ error: "Room not found" });
-    if (capacity > room[0].capacity)
-      return res.status(400).json({ error: "Exceeds room capacity" });
+    const existing = await sql`SELECT * FROM sections WHERE id = ${sectionId}`;
+    if (existing.length === 0)
+      return res.status(404).json({ error: "Section not found." });
 
-    const rules = await sql`SELECT * FROM rules LIMIT 1`;
+    const [sh, sm] = start_time.split(":").map(Number);
+    const [eh, em] = end_time.split(":").map(Number);
+    const start = sh * 60 + sm;
+    const end = eh * 60 + em;
 
-    const duration = await sql`
-      SELECT EXTRACT(EPOCH FROM (${end_time}::time - ${start_time}::time))/60 AS minutes
-    `;
-    if (duration[0].minutes > rules[0].lecture_duration)
-      return res.status(400).json({ error: "Exceeds max duration" });
+    const WORK_START = 8 * 60;
+    const WORK_END = 15 * 60;
+    if (start < WORK_START || end > WORK_END)
+      return res
+        .status(400)
+        .json({ error: "❌ Must be within working hours (8–3)." });
 
-    const overlapBreak = await sql`
-      SELECT (
-        tsrange(
-          TIMESTAMP '2000-01-01' + ${start_time}::time,
-          TIMESTAMP '2000-01-01' + ${end_time}::time
-        ) &&
-        tsrange(
-          TIMESTAMP '2000-01-01' + ${rules[0].break_start}::time,
-          TIMESTAMP '2000-01-01' + ${rules[0].break_end}::time
-        )
-      ) AS overlap
-    `;
-    if (overlapBreak[0].overlap)
-      return res.status(400).json({ error: "Overlaps with break time" });
+    const invalidDays = ["Friday", "Saturday"];
+    if (invalidDays.includes(day_of_week))
+      return res
+        .status(400)
+        .json({ error: `❌ No sections allowed on ${day_of_week}.` });
 
-    const available = await sql`
-      SELECT * FROM faculty_availability
-      WHERE faculty_id = ${instructor_id}
-        AND day = ${day_of_week}
-        AND start_time <= ${start_time}::time
-        AND end_time >= ${end_time}::time
-    `;
-    if (available.length === 0)
-      return res.status(400).json({ error: "Instructor not available" });
+    // Group conflict
+    if (section_group) {
+      const conflictGroup = await sql`
+        SELECT id FROM sections
+        WHERE section_group = ${section_group}
+          AND day_of_week = ${day_of_week}
+          AND id != ${sectionId}
+          AND tsrange(
+            TIMESTAMP '2000-01-01' + start_time,
+            TIMESTAMP '2000-01-01' + end_time
+          ) &&
+          tsrange(
+            TIMESTAMP '2000-01-01' + ${start_time}::time,
+            TIMESTAMP '2000-01-01' + ${end_time}::time
+          )
+      `;
+      if (conflictGroup.length > 0)
+        return res
+          .status(400)
+          .json({ error: "❌ Group already has a section at that time." });
+    }
 
-    const conflictInstructor = await sql`
-      SELECT * FROM sections
-      WHERE instructor_id = ${instructor_id}
-        AND day_of_week = ${day_of_week}
+    // Faculty conflict
+    if (faculty_id) {
+      const conflictFaculty = await sql`
+        SELECT id FROM sections
+        WHERE faculty_id = ${faculty_id}
+          AND day_of_week = ${day_of_week}
+          AND id != ${sectionId}
+          AND tsrange(
+            TIMESTAMP '2000-01-01' + start_time,
+            TIMESTAMP '2000-01-01' + end_time
+          ) &&
+          tsrange(
+            TIMESTAMP '2000-01-01' + ${start_time}::time,
+            TIMESTAMP '2000-01-01' + ${end_time}::time
+          )
+      `;
+      if (conflictFaculty.length > 0)
+        return res.status(400).json({
+          error: "❌ Faculty already teaching at that time.",
+        });
+    }
+
+    // Break check
+    const BREAK_START = 12 * 60;
+    const BREAK_END = 13 * 60;
+    if (!(end <= BREAK_START || start >= BREAK_END))
+      return res.status(400).json({
+        error: "❌ Section overlaps with break (12–1 PM).",
+      });
+
+    // Overlap with others
+    const overlapCheck = await sql`
+      SELECT id FROM sections
+      WHERE day_of_week = ${day_of_week}
         AND id != ${sectionId}
         AND tsrange(
           TIMESTAMP '2000-01-01' + start_time,
@@ -213,74 +260,66 @@ exports.updateSection = async (req, res) => {
           TIMESTAMP '2000-01-01' + ${end_time}::time
         )
     `;
-    if (conflictInstructor.length > 0)
-      return res.status(400).json({ error: "Instructor conflict" });
-
-    const conflictRoom = await sql`
-      SELECT * FROM sections
-      WHERE room_id = ${room_id}
-        AND day_of_week = ${day_of_week}
-        AND id != ${sectionId}
-        AND tsrange(
-          TIMESTAMP '2000-01-01' + start_time,
-          TIMESTAMP '2000-01-01' + end_time
-        ) &&
-        tsrange(
-          TIMESTAMP '2000-01-01' + ${start_time}::time,
-          TIMESTAMP '2000-01-01' + ${end_time}::time
-        )
-    `;
-    if (conflictRoom.length > 0)
-      return res.status(400).json({ error: "Room conflict" });
+    if (overlapCheck.length > 0)
+      return res.status(400).json({
+        error: "❌ Another section exists during this time.",
+      });
 
     const updated = await sql`
       UPDATE sections
-      SET course_id = ${course_id},
-          instructor_id = ${instructor_id},
-          room_id = ${room_id},
-          capacity = ${capacity},
-          day_of_week = ${day_of_week},
-          start_time = ${start_time},
-          end_time = ${end_time}
+      SET 
+        course_id = ${course_id},
+        faculty_id = ${faculty_id || null},
+        room_id = ${room_id || null},
+        day_of_week = ${day_of_week},
+        start_time = ${start_time},
+        end_time = ${end_time},
+        schedule_id = ${schedule_id || null},
+        section_code=${section_code || null},
+        type = ${type || null},
+        section_group = ${section_group || null}
       WHERE id = ${sectionId}
       RETURNING *
     `;
-    res.json(updated[0]);
+
+    res.json({
+      message: "✅ Section updated successfully.",
+      section: updated[0],
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Error updating section:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
-/**
- * جلب جميع السكشنز
- */
+/** 🔹 Get all sections */
 exports.getAllSections = async (req, res) => {
   try {
+    const { schedule_id } = req.query;
+
     const sections = await sql`
       SELECT 
         s.id,
-        s.capacity,
+        s.schedule_id,
+        s.section_group,
+        s.section_code,
+        s.type,
         s.day_of_week,
-        
         s.start_time,
         s.end_time,
-        s.status,
-        c.name AS course_name,
-        c.code AS course_code,
+        c.id AS course_id,
+        c.course_name,
+        c.course_code,
+        f.id AS faculty_id,
         f.name AS faculty_name,
+        r.id AS room_id,
         r.name AS room_name,
-        r.building,
-        l.name AS level_name,
-        d.name AS dept_name,
-        (
-          SELECT COUNT(*) FROM student_sections ss WHERE ss.section_id = s.id
-        ) AS actual_students
+        r.building
       FROM sections s
-      JOIN courses c ON s.course_id = c.id
-      JOIN faculty f ON s.instructor_id = f.id
-      JOIN room r ON s.room_id = r.id
-      LEFT JOIN level l ON c.level_id = l.id
-      LEFT JOIN departments d ON c.dept_id = d.id
+      JOIN course c ON s.course_id = c.id
+      LEFT JOIN faculty f ON s.faculty_id = f.id
+      LEFT JOIN room r ON s.room_id = r.id
+      ${schedule_id ? sql`WHERE s.schedule_id = ${schedule_id}` : sql``}
       ORDER BY s.day_of_week, s.start_time
     `;
 
@@ -291,72 +330,13 @@ exports.getAllSections = async (req, res) => {
   }
 };
 
+/** 🗑️ Delete Section */
 exports.deleteSection = async (req, res) => {
   try {
     const { sectionId } = req.params;
     await sql`DELETE FROM sections WHERE id = ${sectionId}`;
-    res.json({ message: "Section deleted successfully" });
+    res.json({ message: "✅ Section deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// PATCH /sections/:id/status
-exports.updateSectionStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!["draft", "published", "approved"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status value" });
-    }
-
-    const result = await sql`
-      UPDATE sections
-      SET status = ${status}
-      WHERE id = ${id}
-      RETURNING *;
-    `;
-
-    if (result.length === 0)
-      return res.status(404).json({ error: "Section not found" });
-
-    res.json({ message: "Status updated successfully", section: result[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.getSectionStats = async (req, res) => {
-  try {
-    // إجمالي كل السكاشن (sections)
-    const overall = await sql`
-      SELECT 
-        COUNT(*) AS total_sections,
-        COUNT(*) FILTER (WHERE status = 'draft') AS draft_sections,
-        COUNT(*) FILTER (WHERE status = 'approved') AS approved_sections,
-        COUNT(*) FILTER (WHERE status = 'published') AS published_sections
-      FROM sections
-    `;
-
-    // عدد السكاشن لكل قسم
-    const byDept = await sql`
-      SELECT 
-        d.id AS dept_id, 
-        d.name AS dept_name, 
-        COUNT(s.id) AS total_sections
-      FROM departments d
-      JOIN sections s ON d.id = s.dept_id
-      GROUP BY d.id, d.name
-      ORDER BY total_sections DESC
-    `;
-
-    res.json({
-      overall: overall[0],
-      byDepartment: byDept,
-    });
-  } catch (err) {
-    console.error("❌ Error in getSectionStats:", err.message);
     res.status(500).json({ error: err.message });
   }
 };

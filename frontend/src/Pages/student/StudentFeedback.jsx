@@ -1,217 +1,247 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../Services/apiClient";
 import { useAuth } from "../../Hooks/AuthContext";
+import { Spinner, Toast, ToastContainer } from "react-bootstrap";
+import { FaTrashAlt } from "react-icons/fa";
 
 export default function StudentFeedback() {
   const { user } = useAuth();
   const [feedbacks, setFeedbacks] = useState([]);
+  const [feedbackType, setFeedbackType] = useState("student_schedule");
+  const [feedbackText, setFeedbackText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState("all");
+  const [sending, setSending] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingFeedback, setEditingFeedback] = useState(null);
-  const [type, setType] = useState("schedule");
-  const [text, setText] = useState("");
+  // Toast state
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const showToast = (message, type = "info") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "" }), 2500);
+  };
 
-  // 📌 تحميل تعليقات الطالب فقط
-  const fetchFeedbacks = async () => {
-    if (!user) return;
+  // 🟢 Fetch student's feedbacks
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchFeedbacks = async () => {
+      try {
+        const res = await apiClient.get(`/feedback/user/${user.id}`);
+        setFeedbacks(res.data);
+      } catch (err) {
+        console.error("Error fetching feedbacks:", err);
+        showToast("Failed to load feedbacks", "danger");
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    fetchFeedbacks();
+  }, [user]);
+
+  // ✉️ Send feedback
+  const handleSendFeedback = async () => {
+    if (!feedbackText.trim()) {
+      showToast("Please write your feedback before sending", "warning");
+      return;
+    }
+
+    setSending(true);
     try {
-      setLoading(true);
-      const res = await apiClient.get(`/feedback?auth_id=${user.id}`);
-      setFeedbacks(res.data);
+      const res = await apiClient.post("/feedback", {
+        auth_id: user.id,
+        type: feedbackType,
+        text: feedbackText,
+      });
+      setFeedbacks((prev) => [res.data, ...prev]);
+      setFeedbackText("");
+      showToast("✅ Feedback sent successfully", "success");
     } catch (err) {
-      console.error("Failed to load feedback:", err);
+      console.error("Error sending feedback:", err);
+      showToast("Failed to send feedback", "danger");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // 🗑️ Delete feedback
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this feedback?")) return;
+    setLoading(true);
+    try {
+      await apiClient.delete(`/feedback/${id}`);
+      setFeedbacks((prev) => prev.filter((f) => f.id !== id));
+      showToast("🗑️ Feedback deleted successfully", "success");
+    } catch (err) {
+      console.error("Error deleting feedback:", err);
+      showToast("Failed to delete feedback", "danger");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchFeedbacks();
-  }, [user]);
-
-  // 📌 فتح المودال
-  const openModal = (fb = null) => {
-    if (fb) {
-      setEditingFeedback(fb);
-      setType(fb.type);
-      setText(fb.text);
-    } else {
-      setEditingFeedback(null);
-      setType("schedule");
-      setText("");
-    }
-    setModalOpen(true);
-  };
-
-  // 📌 حفظ (إضافة / تعديل)
-  const handleSave = async () => {
-    try {
-      if (editingFeedback) {
-        await apiClient.patch(`/feedback/${editingFeedback.id}`, { text });
-      } else {
-        await apiClient.post("/feedback", { auth_id: user.id, type, text });
-      }
-      setModalOpen(false);
-      fetchFeedbacks();
-    } catch (err) {
-      console.error("Error saving feedback:", err);
-    }
-  };
-
-  // 📌 حذف تعليق
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this feedback?"))
-      return;
-    try {
-      await apiClient.delete(`/feedback/${id}`);
-      fetchFeedbacks();
-    } catch (err) {
-      console.error("Error deleting feedback:", err);
-    }
-  };
-
-  // 📌 فلترة
-  const filtered = filter === "all" ? feedbacks : feedbacks.filter((f) => f.type === filter);
+  // 🌀 Loading Spinner
+  if (pageLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "80vh" }}>
+        <Spinner animation="border" variant="info" style={{ width: "3rem", height: "3rem" }} />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="m-0 text-info">My Feedback</h2>
-        <button
-          className="btn btn-info text-white fw-bold"
-          onClick={() => openModal()}
-        >
-          + Add Feedback
-        </button>
+    <div
+      className="container py-5 px-4"
+      style={{
+        maxWidth: "950px",
+        background: "linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%)",
+        borderRadius: "16px",
+      }}
+    >
+      {/* Toast */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast bg={toast.type} show={toast.show} onClose={() => setToast({ show: false })}>
+          <Toast.Body className="text-white">{toast.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
+
+      {/* Title */}
+      <div className="text-center mb-4">
+        <h2 className="fw-bold text-info mb-2">Student Feedback</h2>
+        <p className="text-muted">Share feedback about your schedule or other level courses 💬</p>
       </div>
 
-      {/* فلترة */}
-      <div className="mb-3">
-        <select
-          className="form-select w-auto"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          <option value="all">All Types</option>
-          <option value="schedule">Schedule</option>
-          <option value="administrative">Administrative</option>
-          <option value="suggestion">Suggestion</option>
-        </select>
-      </div>
+      {/* Feedback Form */}
+      <div className="card border-0 shadow-sm mb-5">
+        <div className="card-body">
+          <h5 className="fw-semibold text-secondary mb-3">Submit New Feedback</h5>
 
-      {/* جدول التعليقات */}
-      {loading ? (
-        <div className="text-center my-4">
-          <div className="spinner-border text-info" />
-        </div>
-      ) : filtered.length > 0 ? (
-        <div className="table-responsive">
-          <table className="table table-bordered align-middle text-center">
-            <thead className="table-light">
-              <tr>
-                <th>Type</th>
-                <th>Feedback</th>
-                <th>Created At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((f) => (
-                <tr key={f.id}>
-                  <td>
-                    <span className="badge bg-secondary">{f.type}</span>
-                  </td>
-                  <td className="text-start">{f.text}</td>
-                  <td>{new Date(f.created_at).toLocaleString()}</td>
-                  <td>
-                    <button
-                      className="btn btn-sm btn-warning me-2"
-                      onClick={() => openModal(f)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => handleDelete(f.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="alert alert-warning">No feedback available</div>
-      )}
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label fw-semibold text-muted">Feedback Type</label>
+              <select
+                className="form-select shadow-sm"
+                value={feedbackType}
+                onChange={(e) => setFeedbackType(e.target.value)}
+              >
+                <option value="student_schedule">On My Schedule</option>
+                <option value="other_courses">On Other Courses</option>
+              </select>
+            </div>
 
-      {/* Modal */}
-      {modalOpen && (
-        <div
-          className="modal fade show"
-          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  {editingFeedback ? "Edit Feedback" : "Add Feedback"}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setModalOpen(false)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                {!editingFeedback && (
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">Type</label>
-                    <select
-                      className="form-select"
-                      value={type}
-                      onChange={(e) => setType(e.target.value)}
-                    >
-                      <option value="schedule">Schedule</option>
-                      <option value="administrative">Administrative</option>
-                      <option value="suggestion">Suggestion</option>
-                    </select>
-                  </div>
-                )}
-
-                <div className="mb-3">
-                  <label className="form-label fw-bold">Feedback</label>
-                  <textarea
-                    className="form-control"
-                    rows="4"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-info text-white"
-                  onClick={handleSave}
-                >
-                  Save
-                </button>
-              </div>
+            <div className="col-md-8">
+              <label className="form-label fw-semibold text-muted">Your Message</label>
+              <textarea
+                className="form-control shadow-sm"
+                rows="4"
+                placeholder="Write your feedback here..."
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                style={{
+                  backgroundColor: "#f8f9fa",
+                  border: "1px solid #dee2e6",
+                  borderRadius: "8px",
+                  resize: "none",
+                }}
+              />
             </div>
           </div>
+
+          <div className="text-end mt-3">
+            <button
+              className="btn btn-info text-white fw-semibold px-4 py-2 shadow-sm"
+              onClick={handleSendFeedback}
+              disabled={sending}
+              style={{ borderRadius: "8px" }}
+            >
+              {sending ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  Sending...
+                </>
+              ) : (
+                "Send Feedback"
+              )}
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Feedback History */}
+      <div className="mb-4">
+        <h5 className="fw-bold text-info mb-3">My Submitted Feedback</h5>
+        {feedbacks.length === 0 ? (
+          <div className="text-center text-muted py-5">
+            <h6>No feedback submitted yet</h6>
+            <p>Your previous feedback will appear here once submitted.</p>
+          </div>
+        ) : (
+          <div className="row g-4">
+            {feedbacks.map((f) => (
+              <div key={f.id} className="col-12">
+                <div
+                  className="p-4 rounded shadow-sm position-relative"
+                  style={{
+                    backgroundColor: "#ffffff",
+                    borderLeft:
+                      f.type === "student_schedule"
+                        ? "5px solid #0dcaf0"
+                        : "5px solid #6f42c1",
+                    transition: "transform 0.2s ease-in-out",
+                  }}
+                >
+                  <div className="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                      <span
+                        className={`badge ${
+                          f.type === "student_schedule" ? "bg-info" : "bg-primary"
+                        } me-2`}
+                      >
+                        {f.type === "student_schedule"
+                          ? "My Schedule"
+                          : "Other Courses"}
+                      </span>
+                      <small className="text-muted">
+                        {new Date(f.created_at).toLocaleDateString()} •{" "}
+                        {new Date(f.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </small>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-outline-danger rounded-circle d-flex align-items-center justify-content-center"
+                      onClick={() => handleDelete(f.id)}
+                      disabled={loading}
+                      style={{ width: "30px", height: "30px" }}
+                      title="Delete Feedback"
+                    >
+                      <FaTrashAlt size={13} />
+                    </button>
+                  </div>
+
+                  <p className="text-dark mb-2" style={{ whiteSpace: "pre-line" }}>
+                    {f.text}
+                  </p>
+
+                  {f.reply && (
+                    <div
+                      className="mt-3 p-3 rounded-3"
+                      style={{
+                        backgroundColor: "#f0faff",
+                        borderLeft: "3px solid #0dcaf0",
+                      }}
+                    >
+                      <small className="fw-semibold text-info d-block mb-1">
+                        Admin Reply
+                      </small>
+                      <p className="mb-0 text-muted">{f.reply}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

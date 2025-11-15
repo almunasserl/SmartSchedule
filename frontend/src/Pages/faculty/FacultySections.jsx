@@ -8,7 +8,7 @@ export default function FacultySections() {
   const [sections, setSections] = useState([]);
   const [pageLoading, setPageLoading] = useState(true);
 
-  // Toast state
+  // Toast
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const showToast = (message, type = "info") => {
     setToast({ show: true, message, type });
@@ -34,7 +34,7 @@ export default function FacultySections() {
     fetchSections();
   }, [user]);
 
-  // Loader أثناء تحميل الصفحة
+  // Loader
   if (pageLoading) {
     return (
       <div
@@ -52,7 +52,7 @@ export default function FacultySections() {
 
   return (
     <div>
-      {/* Toast Container */}
+      {/* Toast */}
       <ToastContainer position="top-end" className="p-3">
         <Toast
           bg={toast.type}
@@ -63,48 +63,47 @@ export default function FacultySections() {
         </Toast>
       </ToastContainer>
 
-      <h2 className="text-info mb-3">My Sections</h2>
+      <h2 className="fw-bold text-info mb-4">My Sections</h2>
 
-      <div className="card shadow-sm p-3">
-        <div className="table-responsive">
-          <table className="table table-bordered text-center align-middle">
-            <thead className="table-light">
-              <tr>
-                <th>Section</th>
-                <th>Course</th>
-                <th>Day</th>
-                <th>Time</th>
-                <th>Room</th>
-                <th>Building</th>
-                <th>Capacity</th>
-                <th>Actual Students</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sections.map((sec) => (
-                <tr key={sec.id}>
-                  <td>{sec.id}</td>
-                  <td>{sec.course_name}</td>
-                  <td>{sec.day_of_week}</td>
-                  <td>
-                    {sec.start_time} - {sec.end_time}
-                  </td>
-                  <td>{sec.room_name}</td>
-                  <td>{sec.building}</td>
-                  <td>{sec.capacity}</td>
-                  <td>{sec.actual_students}</td>
-                </tr>
-              ))}
-
-              {sections.length === 0 && (
+      <div className="card border-0 shadow-sm rounded-3">
+        <div className="card-body">
+          <h5 className="fw-semibold mb-3 text-info">Assigned Sections</h5>
+          <div className="table-responsive">
+            <table className="table table-bordered text-center align-middle">
+              <thead className="table-light">
                 <tr>
-                  <td colSpan="8" className="text-muted">
-                    No sections found
-                  </td>
+                  <th style={{ width: "15%" }}>Section </th>
+                  <th style={{ width: "15%" }}>Course </th>
+                  <th style={{ width: "20%" }}>Day</th>
+                  <th style={{ width: "25%" }}>Time</th>
+                  <th style={{ width: "25%" }}>Room</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sections.length > 0 ? (
+                  sections.map((sec, index) => (
+                    <tr key={index}>
+                      <td className="fw-semibold text-info">
+                        {sec.section_code}
+                      </td>
+                      <td>{sec.course_code}</td>
+                      <td>{sec.day_of_week}</td>
+                      <td>
+                        {sec.start_time} - {sec.end_time}
+                      </td>
+                      <td>{sec.room_name || "TBD"}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="text-muted py-3">
+                      No sections found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

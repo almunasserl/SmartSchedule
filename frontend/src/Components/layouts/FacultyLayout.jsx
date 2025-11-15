@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../Hooks/AuthContext";
+import { Bell, Frown } from "lucide-react";
+import apiClient from "../../Services/apiClient";
 
 function SideLink({ to, label, icon }) {
   return (
@@ -26,16 +28,34 @@ function SideLink({ to, label, icon }) {
 export default function FacultyLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [notifications, setNotifications] = useState([]);
+  const [showNotif, setShowNotif] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  // ✅ Fetch notifications
+  useEffect(() => {
+    if (user?.id && user?.role) fetchNotifications();
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await apiClient.get(
+        `/notifications/user/${user.id}/${user.role}`
+      );
+      setNotifications(res.data || []);
+    } catch (err) {
+      console.error("❌ Failed to fetch notifications:", err);
+    }
+  };
+
   return (
     <div className="container-fluid">
       <div className="row flex-nowrap min-vh-100">
-        {/* Sidebar (lg+ fixed) */}
+        {/* Sidebar */}
         <aside className="col-lg-2 d-none d-lg-flex bg-info text-white p-3 flex-column">
           <div className="d-flex align-items-center gap-2 mb-2">
             <span className="h3 mb-0">SmartSchedule</span>
@@ -98,25 +118,6 @@ export default function FacultyLayout() {
 
               <li>
                 <SideLink
-                  to="/faculty/availability"
-                  label="My Availability"
-                  icon={
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path d="M8 3.5a.5.5 0 0 1 .5.5v4.25l3.5 2.1a.5.5 0 0 1-.5.85l-4-2.4A.5.5 0 0 1 7.5 8V4a.5.5 0 0 1 .5-.5z" />
-                      <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm0-1A7 7 0 1 1 8 1a7 7 0 0 1 0 14z" />
-                    </svg>
-                  }
-                />
-              </li>
-
-              <li>
-                <SideLink
                   to="/faculty/feedback"
                   label="Feedback"
                   icon={
@@ -134,7 +135,7 @@ export default function FacultyLayout() {
             </ul>
           </nav>
 
-          {/* Logout in sidebar (bottom) */}
+          {/* Logout */}
           <div className="mt-auto">
             <button
               type="button"
@@ -146,7 +147,7 @@ export default function FacultyLayout() {
           </div>
         </aside>
 
-        {/* Offcanvas sidebar (mobile/tablet) */}
+        {/* Offcanvas Sidebar (mobile/tablet) */}
         <div
           className="offcanvas offcanvas-start text-white bg-info"
           tabIndex={-1}
@@ -166,7 +167,7 @@ export default function FacultyLayout() {
           </div>
           <div className="offcanvas-body">
             <ul className="nav nav-pills flex-column mb-auto gap-1">
-              <li className="nav-item" data-bs-dismiss="offcanvas">
+              <li data-bs-dismiss="offcanvas">
                 <SideLink
                   to="/faculty"
                   label="Dashboard"
@@ -232,22 +233,6 @@ export default function FacultyLayout() {
                   }
                 />
               </li>
-              <li data-bs-dismiss="offcanvas">
-                <SideLink
-                  to="/faculty/availability"
-                  label="Availability"
-                  icon={
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                      <path d="M3 6h18M3 12h18M3 18h18" />
-                    </svg>
-                  }
-                />
-              </li>
             </ul>
 
             {/* Logout inside offcanvas */}
@@ -274,24 +259,40 @@ export default function FacultyLayout() {
               data-bs-toggle="offcanvas"
               data-bs-target="#facultyOffcanvas"
               aria-controls="facultyOffcanvas"
-              aria-label="Open menu"
             >
               <svg
                 viewBox="0 0 24 24"
                 width="26"
                 height="26"
                 fill="currentColor"
-                aria-hidden="true"
               >
                 <path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z" />
               </svg>
-</button>
+            </button>
 
             {/* Brand */}
             <span className="navbar-brand mb-0 h4">Faculty Dashboard</span>
 
-            {/* user email on right */}
-            <div className="ms-auto">
+            {/* Right side: Notifications + Email */}
+            <div className="ms-auto d-flex align-items-center gap-3 position-relative">
+              {/* Bell Icon */}
+              <div
+                className="position-relative cursor-pointer"
+                style={{ cursor: "pointer" }}
+                onClick={() => setShowNotif(!showNotif)}
+              >
+                <Bell size={22} className="text-info" />
+                {notifications.length > 0 && (
+                  <span
+                    className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                    style={{ fontSize: "0.65rem" }}
+                  >
+                    {notifications.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Email */}
               <span
                 className="d-inline-block text-primary fw-semibold text-truncate"
                 style={{ maxWidth: 260 }}
@@ -299,10 +300,44 @@ export default function FacultyLayout() {
               >
                 {user?.email || ""}
               </span>
+
+              {/* Notifications dropdown */}
+              {showNotif && (
+                <div
+                  className="position-absolute bg-white shadow rounded-3 p-2"
+                  style={{
+                    top: "100%",
+                    right: 0,
+                    width: "300px",
+                    maxHeight: "350px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                  }}
+                >
+                  {notifications.length === 0 ? (
+                    <div className="text-center text-muted py-3">
+                      <Frown size={20} className="mb-1" /> <br />
+                      No notifications
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.id} className="border-bottom small py-2 px-2">
+                        <strong className="text-info d-block">{n.title}</strong>
+                        <span className="text-muted">{n.description}</span>
+                        <div className="text-end">
+                          <small className="text-secondary">
+                            {new Date(n.created_at).toLocaleString()}
+                          </small>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </nav>
 
-          {/* Content */}
+          {/* Main content */}
           <main className="p-3 p-md-4 bg-light flex-grow-1">
             <Outlet />
           </main>

@@ -6,16 +6,35 @@ const sql = require("../config/db");
 exports.getFacultyCourses = async (req, res) => {
   try {
     const { facultyId } = req.params;
+
     const courses = await sql`
-      SELECT c.* 
-      FROM courses c
-      JOIN sections s ON c.id = s.course_id
-      WHERE s.instructor_id = ${facultyId}
-      GROUP BY c.id
+      SELECT 
+        c.course_code,
+        c.course_name,
+        c.type,
+        c.credit_hours
+      FROM course_facultys cf
+      JOIN course c ON cf.course_id = c.id
+      WHERE cf.faculty_id = ${facultyId};
     `;
-    res.json(courses);
+
+    if (courses.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "لم يتم العثور على كورسات لهذا الأستاذ." });
+    }
+
+    res.status(200).json({
+      message: "تم جلب الكورسات بنجاح ✅",
+      facultyId,
+      total: courses.length,
+      courses,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ خطأ في getFacultyCourses:", err.message);
+    res
+      .status(500)
+      .json({ error: "حدث خطأ أثناء جلب الكورسات: " + err.message });
   }
 };
 
@@ -26,11 +45,15 @@ exports.getFacultySections = async (req, res) => {
   try {
     const { facultyId } = req.params;
     const sections = await sql`
-      SELECT s.*, c.name AS course_name, r.name AS room_name, r.building
+      SELECT 
+        s.*, 
+       
+        c.course_code,
+        r.name AS room_name
       FROM sections s
-      JOIN courses c ON s.course_id = c.id
-      JOIN room r ON s.room_id = r.id
-      WHERE s.instructor_id = ${facultyId}
+      JOIN course c ON s.course_id = c.id
+      LEFT JOIN room r ON s.room_id = r.id
+      WHERE s.faculty_id = ${facultyId};
     `;
     res.json(sections);
   } catch (err) {
@@ -39,92 +62,61 @@ exports.getFacultySections = async (req, res) => {
 };
 
 /**
- * إضافة توفر الأستاذ
- */
-exports.addAvailability = async (req, res) => {
-  try {
-    const { facultyId } = req.params;
-    const { day, start_time, end_time } = req.body;
-
-    const result = await sql`
-      INSERT INTO faculty_availability (faculty_id, day, start_time, end_time)
-      VALUES (${facultyId}, ${day}, ${start_time}, ${end_time})
-      RETURNING *
-    `;
-    res.status(201).json(result[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/**
- * عرض التوفر
- */
-exports.getAvailability = async (req, res) => {
-  try {
-    const { facultyId } = req.params;
-    const result = await sql`
-      SELECT * FROM faculty_availability
-      WHERE faculty_id = ${facultyId}
-    `;
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/**
- * حذف توفر
- */
-exports.deleteAvailability = async (req, res) => {
-  try {
-    const { facultyId, id } = req.params;
-
-    await sql`
-      DELETE FROM faculty_availability
-      WHERE faculty_id = ${facultyId} AND id = ${id}
-    `;
-    res.json({ message: "Availability deleted" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/**
- * عرض الجدول الخاص بالأستاذ مجمع حسب الأيام
+ * عرض الجدول الأسبوعي للأستاذ
  */
 exports.getFacultySchedule = async (req, res) => {
   try {
     const { facultyId } = req.params;
 
+    console.log(`🔍 Fetching schedule for faculty ${facultyId}`);
+
     const schedule = await sql`
-      SELECT s.day_of_week,
-             json_agg(
-               json_build_object(
-                 'course_name', c.name,
-                 'start_time', s.start_time,
-                 'end_time', s.end_time,
-                 'room_name', r.name,
-                 'building', r.building
-               )
-               ORDER BY s.start_time
-             ) AS classes
+      SELECT 
+        s.id AS section_id,
+        c.course_name,
+        c.course_code,
+        c.credit_hours,
+        s.day_of_week,
+        TO_CHAR(s.start_time, 'HH24:MI') AS start_time,
+        TO_CHAR(s.end_time, 'HH24:MI') AS end_time,
+        r.name AS room_name
       FROM sections s
-      JOIN courses c ON s.course_id = c.id
-      JOIN room r ON s.room_id = r.id
-      WHERE s.instructor_id = ${facultyId}
-      GROUP BY s.day_of_week
-      ORDER BY MIN(s.start_time)
+      JOIN course c ON s.course_id = c.id
+      LEFT JOIN room r ON s.room_id = r.id
+      JOIN schedule sch ON s.schedule_id = sch.id   -- ✅ link to schedule
+      WHERE s.faculty_id = ${facultyId}
+      AND sch.status = 'published'                   -- ✅ only approved schedules
+      ORDER BY
+        CASE
+          WHEN s.day_of_week = 'Sunday' THEN 1
+          WHEN s.day_of_week = 'Monday' THEN 2
+          WHEN s.day_of_week = 'Tuesday' THEN 3
+          WHEN s.day_of_week = 'Wednesday' THEN 4
+          WHEN s.day_of_week = 'Thursday' THEN 5
+          ELSE 6
+        END,
+        s.start_time;
     `;
 
-    res.json(schedule);
+    if (schedule.length === 0) {
+      console.log(`⚠️ No approved schedule found for faculty ${facultyId}`);
+      return res
+        .status(404)
+        .json({ message: "لا توجد سكاشن معتمدة (approved) لهذا الأستاذ." });
+    }
+
+    console.log(
+      `✅ Found ${schedule.length} approved sections for faculty ${facultyId}`
+    );
+    res.status(200).json(schedule);
   } catch (err) {
+    console.error("❌ Error fetching faculty schedule:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
 /**
- * إحصائيات الأستاذ (عدد المقررات وعدد السكاشن)
+ * إحصائيات الأستاذ
  */
 exports.getFacultyStats = async (req, res) => {
   try {
@@ -135,8 +127,8 @@ exports.getFacultyStats = async (req, res) => {
         COUNT(DISTINCT c.id) AS total_courses,
         COUNT(s.id) AS total_sections
       FROM sections s
-      JOIN courses c ON s.course_id = c.id
-      WHERE s.instructor_id = ${facultyId}
+      JOIN course c ON s.course_id = c.id
+      WHERE s.faculty_id = ${facultyId};
     `;
 
     res.json(stats[0]);

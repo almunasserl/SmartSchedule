@@ -6,8 +6,18 @@ const sql = require("../config/db");
 exports.getCourses = async (req, res) => {
   try {
     const courses = await sql`
-      SELECT * FROM courses
-      ORDER BY id ASC
+      SELECT 
+  c.*, 
+  l.name AS level_name
+FROM 
+  course c
+JOIN 
+  level l 
+ON 
+  c.level_id = l.id
+ORDER BY 
+  c.id ASC;
+
     `;
     res.json(courses);
   } catch (err) {
@@ -109,3 +119,37 @@ exports.deleteCourse = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+/**
+ * 6) تحديث سعة الكورس (capacity فقط)
+ */
+exports.updateCourseCapacity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { capacity } = req.body;
+
+    if (capacity === undefined || isNaN(capacity) || Number(capacity) < 0) {
+      return res.status(400).json({ error: "Invalid capacity value" });
+    }
+
+    const result = await sql`
+      UPDATE course
+      SET capacity = ${capacity}
+      WHERE id = ${id}
+      RETURNING id, course_code, course_name, capacity
+    `;
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    res.json({
+      message: "✅ Course capacity updated successfully",
+      updated_course: result[0],
+    });
+  } catch (err) {
+    console.error("❌ Error updating capacity:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+

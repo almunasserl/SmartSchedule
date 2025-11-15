@@ -1,7 +1,11 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
-const DB = require("./config/db");
+const http = require("http");
 require("dotenv").config();
+const { startYjsServer } = require("./yjsServer.js");
+
+// 🧩 Import routes
 const facultyRoutes = require("./routes/facultyRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -15,11 +19,47 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const courseRoutes = require("./routes/courseRoutes");
 const dropdownsRoutes = require("./routes/dropdownsRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const scheduleRoutes = require("./routes/scheduleRoutes");
+const irregularRoutes = require("./routes/irregularRoutes");
 
+const PORT = process.env.PORT || 5001;
+
+// ⚙️ Initialize app and server
 const app = express();
-app.use(cors());
+const server = http.createServer(app);
+
+// 🧠 Start Yjs WebSocket server (works only locally or on persistent host)
+startYjsServer(server);
+
+// ✅ Secure & flexible CORS setup
+const allowedOrigins = [
+  "http://localhost:5173", // for local development
+  "https://smartschedulefrontend.onrender.com", // ✅ your deployed frontend domain
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like Postman or mobile apps)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn("❌ Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+
+// Handle preflight (OPTIONS) requests for any path (Express 5 requires regex)
+app.options(/.*/, cors());
+
 app.use(express.json());
 
+// 🧭 API routes
 app.use("/api/faculty", facultyRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/auth", authRoutes);
@@ -29,13 +69,19 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/surveys", surveyRoutes);
 app.use("/api/sections", sectionRoutes);
 app.use("/api/faculty-courses", facultyCoursesRoutes);
-
+app.use("/api/irregular", irregularRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/dropdowns", dropdownsRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/schedules", scheduleRoutes);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// ✅ Run locally or export for Render/Vercel
+if (process.env.NODE_ENV !== "production") {
+  server.listen(PORT, () => {
+    console.log(`🚀 SmartSchedule server running locally on port ${PORT}`);
+  });
+} else {
+  // Serverless environment export
+  module.exports = app;
+}

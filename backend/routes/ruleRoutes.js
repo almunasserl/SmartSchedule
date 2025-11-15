@@ -1,11 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const { getAllRules, updateRule } = require("../controllers/ruleController");
+const rulesController = require("../controllers/ruleController"); // ✅ plural, and matches new controller file
 
-// عرض كل الرولز
-router.get("/", getAllRules);
+// 📘 Get all rules
+router.get("/", rulesController.getAllRules);
 
-// تعديل رول
-router.patch("/:ruleId", updateRule);
+// 📗 Get single rule by key
+router.get("/:key", rulesController.getRuleByKey);
+
+// 🟢 Create or update rule (Upsert)
+router.post("/", rulesController.upsertRule);
+
+// 🔴 Delete rule by key
+router.delete("/:key", rulesController.deleteRule);
 
 module.exports = router;

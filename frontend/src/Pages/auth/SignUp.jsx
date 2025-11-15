@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { QRCodeCanvas } from "qrcode.react"; // ✅ مكتبة توليد QR محلياً
 import apiClient from "../../Services/apiClient";
 
 export default function SignUp() {
@@ -11,26 +12,24 @@ export default function SignUp() {
     level_id: "",
     dept_id: "",
   });
+
   const [levels, setLevels] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [otpUrl, setOtpUrl] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
 
-  // ✅ Fetch levels and departments once
+  // ✅ Fetch levels only
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
-        const [levelsRes, deptRes] = await Promise.all([
-          apiClient.get("/dropdowns/terms"),
-          apiClient.get("/dropdowns/departments"),
-        ]);
+        const levelsRes = await apiClient.get("/dropdowns/terms");
         setLevels(levelsRes.data);
-        setDepartments(deptRes.data);
       } catch {
         setLevels([]);
-        setDepartments([]);
       }
     };
     fetchDropdowns();
@@ -47,6 +46,8 @@ export default function SignUp() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setOtpUrl("");
+    setOtpCode("");
     setLoading(true);
 
     try {
@@ -56,7 +57,6 @@ export default function SignUp() {
         role: formData.role,
       };
 
-      // Add optional fields based on role
       if (formData.role === "student") {
         payload.name = formData.name;
         payload.level_id = formData.level_id;
@@ -67,8 +67,19 @@ export default function SignUp() {
       }
 
       const res = await apiClient.post("auth/signup", payload);
-      setSuccess("✅ Account created successfully! Redirecting to login...");
-      setTimeout(() => navigate("/login"), 1500);
+
+      // ✅ استلام الرابط بدل الصورة
+      if (res.data.otp_url) {
+        setSuccess(
+          "✅ Account created successfully! Scan this QR code in Google Authenticator before logging in."
+        );
+        setOtpUrl(res.data.otp_url);
+        setOtpCode(res.data.otp_code);
+        setShowModal(true); // إظهار النافذة
+      } else {
+        setSuccess("✅ Account created successfully!");
+        setTimeout(() => navigate("/login"), 1500);
+      }
     } catch (err) {
       console.error("Sign up error:", err);
       setError(err.response?.data?.error || "❌ Failed to create account");
@@ -85,7 +96,9 @@ export default function SignUp() {
       >
         <h3 className="text-center mb-4 text-info">SmartSchedule Sign Up</h3>
 
-        {success && <div className="alert alert-success">{success}</div>}
+        {success && !showModal && (
+          <div className="alert alert-success">{success}</div>
+        )}
         {error && <div className="alert alert-danger">{error}</div>}
 
         <form onSubmit={handleSubmit}>
@@ -131,48 +144,28 @@ export default function SignUp() {
               <option value="student">Student</option>
               <option value="faculty">Faculty</option>
               <option value="registrar">Registrar</option>
-              <option value="committee">Committee</option>
+              <option value="schedule_committee">Schedule_committee</option>
+              <option value="load_committee">Load Committee</option>
             </select>
           </div>
 
-          {/* Name for student/faculty */}
           {(formData.role === "student" || formData.role === "faculty") && (
-            <div className="mb-3">
-              <label className="form-label fw-bold">Name</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Enter your name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-              />
-            </div>
+            <>
+              <div className="mb-3">
+                <label className="form-label fw-bold">Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter your name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </>
           )}
 
-          {/* Department for student/faculty */}
-          {(formData.role === "student" || formData.role === "faculty") && (
-            <div className="mb-3">
-              <label className="form-label fw-bold">Department</label>
-              <select
-                className="form-select"
-                name="dept_id"
-                value={formData.dept_id}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Department</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Level for student only */}
           {formData.role === "student" && (
             <div className="mb-3">
               <label className="form-label fw-bold">Level</label>
@@ -218,6 +211,49 @@ export default function SignUp() {
           </span>
         </div>
       </div>
+
+      {/* ✅ Modal for QR Code */}
+      {showModal && (
+        <div
+          className="modal fade show"
+          style={{
+            display: "block",
+            backgroundColor: "rgba(0,0,0,0.6)",
+          }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content p-4 text-center">
+              <h5 className="fw-bold text-success mb-3">
+                Scan this QR code in Google Authenticator
+              </h5>
+
+              {/* ✅ توليد الكود محليًا من الرابط */}
+              <div className="d-flex justify-content-center mb-3">
+                <QRCodeCanvas value={otpUrl} size={200} level="H" includeMargin />
+              </div>
+
+              <p className="small text-muted">
+                Or enter this code manually: <b>{otpCode}</b>
+              </p>
+
+              <div className="mt-3 d-flex justify-content-center gap-3">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowModal(false)}
+                >
+                  Close
+                </button>
+                <button
+                  className="btn btn-info text-white fw-bold"
+                  onClick={() => navigate("/login")}
+                >
+                  Continue to Login
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

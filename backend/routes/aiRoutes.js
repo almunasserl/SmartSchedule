@@ -1,9 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const {
-  generateSmartSections,
-} = require("../controllers/aiSectionsController");
+const { generateSmartSections } = require("../controllers/aiSectionsController");
 
-router.get("/smart-sections", generateSmartSections);
+// Only one endpoint for now
+router.post("/generate-smart-sections", generateSmartSections);
 
 module.exports = router;

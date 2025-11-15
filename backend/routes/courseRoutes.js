@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   getCourses,
-  
+   updateCourseCapacity,
   addCourse,
   updateCourse,
   deleteCourse,
@@ -24,5 +24,6 @@ router.patch("/:id", updateCourse);
 
 // حذف كورس
 router.delete("/:id", deleteCourse);
+router.put("/:id/capacity", updateCourseCapacity);
 
 module.exports = router;

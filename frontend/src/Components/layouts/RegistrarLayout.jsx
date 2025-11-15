@@ -1,7 +1,8 @@
-// src/layouts/RegistrarLayout.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../Hooks/AuthContext";
+import { Bell, Frown } from "lucide-react";
+import apiClient from "../../Services/apiClient";
 
 function SideLink({ to, label, icon }) {
   return (
@@ -28,9 +29,31 @@ export default function RegistrarLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const [notifications, setNotifications] = useState([]);
+  const [showNotif, setShowNotif] = useState(false);
+
+  const getNavbarTitle = () => {
+    return "Registrar Dashboard";
+  };
+
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  useEffect(() => {
+    if (user?.id && user?.role) fetchNotifications();
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await apiClient.get(
+        `/notifications/user/${user.id}/${user.role}`
+      );
+      setNotifications(res.data || []);
+    } catch (err) {
+      console.error("❌ Failed to fetch notifications:", err);
+    }
   };
 
   return (
@@ -44,169 +67,41 @@ export default function RegistrarLayout() {
 
           <nav>
             <ul className="nav nav-pills flex-column mb-auto gap-1">
-              {/* 👥 Committee Menu */}
-              {user?.role === "committee" && (
-                <>
-                  <li>
-                    <SideLink
-                      to="/registrar"
-                      label="Dashboard"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" />
-                        </svg>
-                      }
-                    />
-                  </li>
+              {/* 👩‍💼 Registrar Menu */}
+              <li>
+                <SideLink
+                  to="/registrar"
+                  label="Dashboard"
+                  icon={
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" />
+                    </svg>
+                  }
+                />
+              </li>
 
-                  <li>
-                    <SideLink
-                      to="/registrar/schedules"
-                      label="Schedules"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M3 4h18v2H3zM3 10h18v2H3zM3 16h18v2H3z" />
-                        </svg>
-                      }
-                    />
-                  </li>
-
-                  <li>
-                    <SideLink
-                      to="/registrar/sections"
-                      label="Sections"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M12 2 1 7l11 5 11-5z" />
-                          <path d="M1 12l11 5 11-5v3l-11 5L1 15z" />
-                        </svg>
-                      }
-                    />
-                  </li>
-
-                  <li>
-                    <SideLink
-                      to="/registrar/courses"
-                      label="Courses"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M4 3h12a3 3 0 0 1 3 3v14h-2V6a1 1 0 0 0-1-1H4z" />
-                          <path d="M4 5h10a2 2 0 0 1 2 2v13H6a2 2 0 0 1-2-2z" />
-                        </svg>
-                      }
-                    />
-                  </li>
-
-                  <li>
-                    <SideLink
-                      to="/registrar/surveys"
-                      label="Surveys"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M4 4h16v11H7l-3 3z" />
-                        </svg>
-                      }
-                    />
-                  </li>
-
-                  <li>
-                    <SideLink
-                      to="/registrar/feedback"
-                      label="Feedback"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M2 2h20v14H6l-4 4z" />
-                        </svg>
-                      }
-                    />
-                  </li>
-
-                  <li>
-                    <SideLink
-                      to="/registrar/notifications"
-                      label="Notifications"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1z" />
-                        </svg>
-                      }
-                    />
-                  </li>
-
-                  <li>
-                    <SideLink
-                      to="/registrar/rules"
-                      label="Rules"
-                      icon={
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M3 6h18v2H3zM3 12h18v2H3zM3 18h18v2H3z" />
-                        </svg>
-                      }
-                    />
-                  </li>
-                </>
-              )}
-
-              {/* 👩‍💼 Registrar Menu — فقط يظهر هذا */}
-              {user?.role === "registrar" && (
-                <li>
-                  <SideLink
-                    to="/registrar/irregular-students"
-                    label="Irregular Students"
-                    icon={
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        fill="currentColor"
-                        viewBox="0 0 16 16"
-                      >
-                        <path d="M8 0a8 8 0 1 0 8 8A8.009 8.009 0 0 0 8 0zM3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
-                      </svg>
-                    }
-                  />
-                </li>
-              )}
+              {/* 🧮 Course Capacity */}
+              <li>
+                <SideLink
+                  to="/registrar/course-capacity"
+                  label="Course Capacity"
+                  icon={
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M4 3h16a1 1 0 0 1 1 1v16l-9-4-9 4V4a1 1 0 0 1 1-1z" />
+                    </svg>
+                  }
+                />
+              </li>
             </ul>
           </nav>
 
@@ -225,8 +120,28 @@ export default function RegistrarLayout() {
         {/* ====== Main Layout Area ====== */}
         <div className="col px-0 d-flex flex-column">
           <nav className="navbar navbar-light bg-light px-3 shadow-sm sticky-top">
-            <span className="navbar-brand mb-0 h4">Registrar Dashboard</span>
-            <div className="ms-auto">
+            <span className="navbar-brand mb-0 h4">{getNavbarTitle()}</span>
+
+            {/* Right Side: Notifications + User Info */}
+            <div className="ms-auto d-flex align-items-center gap-3 position-relative">
+              {/* Bell Icon */}
+              <div
+                className="position-relative cursor-pointer"
+                style={{ cursor: "pointer" }}
+                onClick={() => setShowNotif(!showNotif)}
+              >
+                <Bell size={22} className="text-info" />
+                {notifications.length > 0 && (
+                  <span
+                    className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                    style={{ fontSize: "0.65rem" }}
+                  >
+                    {notifications.length}
+                  </span>
+                )}
+              </div>
+
+              {/* User Email */}
               <span
                 className="d-inline-block text-primary fw-semibold text-truncate"
                 style={{ maxWidth: 260 }}
@@ -234,13 +149,53 @@ export default function RegistrarLayout() {
               >
                 {user?.email || ""}
               </span>
+
+              {/* Notifications Dropdown */}
+              {showNotif && (
+                <div
+                  className="position-absolute bg-white shadow rounded-3 p-2"
+                  style={{
+                    top: "100%",
+                    right: 0,
+                    width: "300px",
+                    maxHeight: "350px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                  }}
+                >
+                  {notifications.length === 0 ? (
+                    <div className="text-center text-muted py-3">
+                      <Frown size={20} className="mb-1" /> <br />
+                      No notifications
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className="border-bottom small py-2 px-2"
+                        style={{ cursor: "default" }}
+                      >
+                        <strong className="text-info d-block">{n.title}</strong>
+                        <span className="text-muted">{n.description}</span>
+                        <div className="text-end">
+                          <small className="text-secondary">
+                            {new Date(n.created_at).toLocaleString()}
+                          </small>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </nav>
 
+          {/* Main content */}
           <main className="p-3 p-md-4 bg-light flex-grow-1">
             <Outlet />
           </main>
 
+          {/* Footer */}
           <footer className="bg-white border-top text-muted small py-2 px-3 text-center">
             © {new Date().getFullYear()} SmartSchedule
           </footer>

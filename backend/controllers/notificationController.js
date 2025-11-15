@@ -1,7 +1,7 @@
 const sql = require("../config/db");
 
 /**
- * 1) جلب كل الإشعارات
+ * 1️⃣ Get all notifications
  */
 exports.getAllNotifications = async (req, res) => {
   try {
@@ -11,77 +11,86 @@ exports.getAllNotifications = async (req, res) => {
     `;
     res.json(notifications);
   } catch (err) {
+    console.error("❌ Error in getAllNotifications:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * 2) جلب الإشعارات حسب الـ role
- */
-exports.getNotificationsByRole = async (req, res) => {
-  try {
-    const { role } = req.params;
 
-    const notifications = await sql`
-      SELECT * FROM notifications
-      WHERE role = ${role}
-      ORDER BY created_at DESC
-    `;
-
-    res.json(notifications);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
 /**
- * 3) جلب الإشعارات الخاصة بمستخدم
+ * 3️⃣ Get notifications for a user:
+ *     - Direct (user_id = ?)
+ *     - Role-based (role = user's role)
+ *     - General (role = 'all')
  */
 exports.getNotificationsByUser = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId, role } = req.params;
 
+    // 🧠 Validate input
+    if (!userId || !role) {
+      return res.status(400).json({ error: "Missing userId or role" });
+    }
+
+    // 🔹 Fetch notifications that match user_id, role, or all
     const notifications = await sql`
-      SELECT * FROM notifications
-      WHERE user_id = ${userId}
-      ORDER BY created_at DESC
+      SELECT *
+      FROM notifications
+      WHERE 
+        user_id = ${userId}
+        OR LOWER(role) = LOWER(${role})
+        OR LOWER(role) = 'all'
+      ORDER BY created_at DESC;
     `;
 
-    res.json(notifications);
+    if (notifications.length === 0) {
+      return res.status(200).json([]); // empty array but successful response
+    }
+
+    res.status(200).json(notifications);
   } catch (err) {
+    console.error("❌ Error in getNotificationsByUser:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
+
 /**
- * 4) إضافة إشعار جديد
+ * 4️⃣ Create a new notification (default: draft)
  */
 exports.addNotification = async (req, res) => {
   try {
     const { title, description, role, user_id } = req.body;
 
     const result = await sql`
-      INSERT INTO notifications (title, description, role, user_id, isread, created_at,status)
-      VALUES (${title}, ${description}, ${role}, ${user_id}, false, NOW(), 'draft')
+      INSERT INTO notifications (title, description, role, user_id, isread, created_at, status)
+      VALUES (${title}, ${description}, ${role || null}, ${user_id || null}, false, NOW(), 'draft')
       RETURNING *
     `;
 
     res.status(201).json(result[0]);
   } catch (err) {
+    console.error("❌ Error in addNotification:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
 /**
- * 5) تحديث حالة الإشعار إلى مقروء
+ * 5️⃣ Update notification status (publish / unpublish toggle)
  */
-exports.markAsPublish = async (req, res) => {
+exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    const { status } = req.body; // expected values: 'published' or 'draft'
+
+    if (!["published", "draft"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
 
     const result = await sql`
       UPDATE notifications
-      SET status = 'published'
+      SET status = ${status}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -90,14 +99,15 @@ exports.markAsPublish = async (req, res) => {
       return res.status(404).json({ error: "Notification not found" });
     }
 
-    res.json(result[0]);
+    res.json({ message: `Notification marked as ${status}`, notification: result[0] });
   } catch (err) {
+    console.error("❌ Error in updateStatus:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
 /**
- * 6) حذف إشعار
+ * 6️⃣ Delete notification
  */
 exports.deleteNotification = async (req, res) => {
   try {
@@ -113,8 +123,9 @@ exports.deleteNotification = async (req, res) => {
       return res.status(404).json({ error: "Notification not found" });
     }
 
-    res.json({ message: "Notification deleted", notification: result[0] });
+    res.json({ message: "Notification deleted successfully" });
   } catch (err) {
+    console.error("❌ Error in deleteNotification:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
